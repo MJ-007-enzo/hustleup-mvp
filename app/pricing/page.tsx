@@ -5,6 +5,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, Tier } from "@/lib/types";
 
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
+type PaidTier = "basic" | "premium";
+
 export default function PricingPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,9 +47,24 @@ export default function PricingPage() {
     setLoading(false);
   }
 
-  async function choosePlan(tier: Tier) {
+  function loadRazorpayScript() {
+    return new Promise<boolean>((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+
+  async function chooseBeginner() {
     setMessage("");
-    setBusyTier(tier);
+    setBusyTier("beginner");
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -52,7 +75,7 @@ export default function PricingPage() {
 
     const { error } = await supabase
       .from("profiles")
-      .update({ tier })
+      .update({ tier: "beginner" })
       .eq("id", authData.user.id);
 
     setBusyTier(null);
@@ -62,8 +85,93 @@ export default function PricingPage() {
       return;
     }
 
-    setMessage(`Your plan has been updated to ${tier}.`);
+    setMessage("Your plan has been updated to beginner.");
     loadProfile();
+  }
+
+  async function startPayment(tier: PaidTier) {
+    setMessage("");
+    setBusyTier(tier);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      window.location.href = "/auth";
+      return;
+    }
+
+    const scriptLoaded = await loadRazorpayScript();
+
+    if (!scriptLoaded) {
+      setBusyTier(null);
+      setMessage("Razorpay checkout failed to load. Check your internet connection.");
+      return;
+    }
+
+    const orderResponse = await fetch("/api/razorpay/create-order", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ tier }),
+    });
+
+    const orderData = await orderResponse.json();
+
+    if (!orderResponse.ok) {
+      setBusyTier(null);
+      setMessage(orderData.error || "Could not create Razorpay order.");
+      return;
+    }
+
+    const options = {
+      key: orderData.keyId,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "HustleUp",
+      description: `${tier.toUpperCase()} plan`,
+      order_id: orderData.orderId,
+      prefill: {
+        name: profile?.full_name || "",
+        email: profile?.email || "",
+      },
+      theme: {
+        color: "#e8500a",
+      },
+      handler: async function (response: any) {
+        const verifyResponse = await fetch("/api/razorpay/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(response),
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        setBusyTier(null);
+
+        if (!verifyResponse.ok) {
+          setMessage(verifyData.error || "Payment verification failed.");
+          return;
+        }
+
+        setMessage(`Payment successful. Your plan is now ${verifyData.tier}.`);
+        loadProfile();
+      },
+      modal: {
+        ondismiss: function () {
+          setBusyTier(null);
+          setMessage("Payment cancelled.");
+        },
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
   }
 
   function planButton(tier: Tier, label: string) {
@@ -80,16 +188,32 @@ export default function PricingPage() {
     }
 
     if (profile.tier === tier) {
-      return <button className="btn" disabled>Current plan</button>;
+      return (
+        <button className="btn" disabled>
+          Current plan
+        </button>
+      );
+    }
+
+    if (tier === "beginner") {
+      return (
+        <button
+          className="btn"
+          onClick={chooseBeginner}
+          disabled={busyTier === "beginner"}
+        >
+          {busyTier === "beginner" ? "Updating..." : label}
+        </button>
+      );
     }
 
     return (
       <button
         className="btn btn-primary"
-        onClick={() => choosePlan(tier)}
+        onClick={() => startPayment(tier as PaidTier)}
         disabled={busyTier === tier}
       >
-        {busyTier === tier ? "Updating..." : label}
+        {busyTier === tier ? "Opening payment..." : label}
       </button>
     );
   }
@@ -105,7 +229,13 @@ export default function PricingPage() {
       </p>
 
       {message && (
-        <div className={`notice ${message.includes("updated") ? "success" : "error"}`}>
+        <div
+          className={`notice ${
+            message.includes("successful") || message.includes("updated")
+              ? "success"
+              : "error"
+          }`}
+        >
           {message}
         </div>
       )}
@@ -137,7 +267,7 @@ export default function PricingPage() {
           <p>✓ Better profile visibility</p>
           <p>✓ Application tracking</p>
           <p>✓ Basic badge</p>
-          {planButton("basic", "Choose Basic")}
+          {planButton("basic", "Pay ₹99")}
         </div>
 
         <div className="card">
@@ -148,7 +278,7 @@ export default function PricingPage() {
           <p>✓ Priority job access</p>
           <p>✓ Stronger profile ranking</p>
           <p>✓ Future certification access</p>
-          {planButton("premium", "Choose Premium")}
+          {planButton("premium", "Pay ₹299")}
         </div>
       </section>
 
