@@ -14,6 +14,12 @@ type JobWithDetails = Job & {
 };
 
 type PremiumFilter = "all" | "premium" | "normal";
+type FilterKey = "location" | "jobType" | "salaryPeriod" | "premium";
+
+type DropdownOption = {
+  label: string;
+  value: string;
+};
 
 const tamilNaduCities = [
   "Chennai",
@@ -61,6 +67,14 @@ function normalizeLocation(value?: string | null) {
   return (value || "").trim().toLowerCase();
 }
 
+function formatSalaryPeriod(period: string) {
+  if (period === "hour") return "/hour";
+  if (period === "day") return "/day";
+  if (period === "week") return "/week";
+  if (period === "month") return "/month";
+  return `/${period}`;
+}
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [message, setMessage] = useState("");
@@ -74,6 +88,8 @@ export default function JobsPage() {
   const [jobTypeFilter, setJobTypeFilter] = useState("all");
   const [salaryPeriodFilter, setSalaryPeriodFilter] = useState("all");
   const [premiumFilter, setPremiumFilter] = useState<PremiumFilter>("all");
+
+  const [openDropdown, setOpenDropdown] = useState<FilterKey | null>(null);
 
   const locations = tamilNaduCities;
 
@@ -95,9 +111,57 @@ export default function JobsPage() {
     return Array.from(new Set(values)).sort();
   }, [jobs]);
 
+  const locationOptions = useMemo<DropdownOption[]>(() => {
+    return [
+      { label: "All locations", value: "all" },
+      ...locations.map((city) => ({
+        label: city,
+        value: city,
+      })),
+    ];
+  }, [locations]);
+
+  const jobTypeOptions = useMemo<DropdownOption[]>(() => {
+    return [
+      { label: "All types", value: "all" },
+      ...jobTypes.map((type) => ({
+        label: type,
+        value: type,
+      })),
+    ];
+  }, [jobTypes]);
+
+  const salaryPeriodOptions = useMemo<DropdownOption[]>(() => {
+    return [
+      { label: "All salary periods", value: "all" },
+      ...salaryPeriods.map((period) => ({
+        label: formatSalaryPeriod(period),
+        value: period,
+      })),
+    ];
+  }, [salaryPeriods]);
+
+  const premiumOptions: DropdownOption[] = [
+    { label: "All listings", value: "all" },
+    { label: "Premium only", value: "premium" },
+    { label: "Normal only", value: "normal" },
+  ];
+
   useEffect(() => {
     loadJobs();
     loadAppliedJobs();
+  }, []);
+
+  useEffect(() => {
+    function closeDropdown() {
+      setOpenDropdown(null);
+    }
+
+    window.addEventListener("click", closeDropdown);
+
+    return () => {
+      window.removeEventListener("click", closeDropdown);
+    };
   }, []);
 
   const filteredJobs = useMemo(() => {
@@ -153,12 +217,17 @@ export default function JobsPage() {
     premiumFilter,
   ]);
 
+  function selectedLabel(options: DropdownOption[], value: string) {
+    return options.find((option) => option.value === value)?.label || value;
+  }
+
   function clearFilters() {
     setSearchQuery("");
     setLocationFilter("all");
     setJobTypeFilter("all");
     setSalaryPeriodFilter("all");
     setPremiumFilter("all");
+    setOpenDropdown(null);
   }
 
   async function loadJobs() {
@@ -258,6 +327,164 @@ export default function JobsPage() {
       : "Not added by the job owner.";
   }
 
+  function FilterDropdown({
+    label,
+    dropdownKey,
+    value,
+    options,
+    onChange,
+  }: {
+    label: string;
+    dropdownKey: FilterKey;
+    value: string;
+    options: DropdownOption[];
+    onChange: (value: string) => void;
+  }) {
+    const isOpen = openDropdown === dropdownKey;
+
+    return (
+      <div
+        className="label"
+        style={{
+          position: "relative",
+          zIndex: isOpen ? 100 : 1,
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {label}
+
+        <button
+          type="button"
+          onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
+          style={{
+            width: "100%",
+            minHeight: 52,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            border: isOpen
+              ? "1px solid rgba(255, 90, 31, 0.55)"
+              : "1px solid var(--line-warm)",
+            borderRadius: 18,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,250,246,0.92))",
+            color: "var(--premium)",
+            padding: "0 15px",
+            fontSize: 15,
+            fontWeight: 850,
+            fontFamily: "inherit",
+            textAlign: "left",
+            cursor: "pointer",
+            boxShadow: isOpen
+              ? "0 0 0 4px rgba(255, 90, 31, 0.1), 0 16px 32px rgba(17, 24, 39, 0.08)"
+              : "0 10px 22px rgba(17, 24, 39, 0.04)",
+            transition:
+              "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
+          }}
+        >
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {selectedLabel(options, value)}
+          </span>
+
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              background: isOpen ? "var(--brand-soft)" : "#ffffff",
+              color: isOpen ? "var(--brand-dark)" : "var(--muted)",
+              border: "1px solid var(--line-warm)",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition:
+                "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
+              flexShrink: 0,
+            }}
+          >
+            ↓
+          </span>
+        </button>
+
+        {isOpen && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "calc(100% + 8px)",
+              maxHeight: 260,
+              overflowY: "auto",
+              border: "1px solid var(--line-warm)",
+              borderRadius: 20,
+              background:
+                "linear-gradient(180deg, #ffffff 0%, #fffaf6 100%)",
+              boxShadow:
+                "0 28px 70px rgba(17, 24, 39, 0.18), 0 10px 24px rgba(255, 90, 31, 0.08)",
+              padding: 8,
+              animation: "menuDrop 0.16s ease both",
+            }}
+          >
+            {options.map((option) => {
+              const selected = option.value === value;
+
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpenDropdown(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 42,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    border: 0,
+                    borderRadius: 14,
+                    background: selected ? "var(--brand-soft)" : "transparent",
+                    color: selected ? "var(--brand-dark)" : "var(--premium)",
+                    padding: "10px 12px",
+                    fontSize: 14,
+                    fontWeight: selected ? 950 : 800,
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition:
+                      "background 0.14s ease, color 0.14s ease, transform 0.14s ease",
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "rgba(255, 90, 31, 0.07)";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "transparent";
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {selected && <span>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="container">
       <section className="jobs-hero">
@@ -306,68 +533,37 @@ export default function JobsPage() {
         </div>
 
         <div className="jobs-filter-grid">
-          <label className="label">
-            Location
-            <select
-              className="select"
-              value={locationFilter}
-              onChange={(event) => setLocationFilter(event.target.value)}
-            >
-              <option value="all">All locations</option>
-              {locations.map((location) => (
-                <option value={location} key={location}>
-                  {location}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Location"
+            dropdownKey="location"
+            value={locationFilter}
+            options={locationOptions}
+            onChange={setLocationFilter}
+          />
 
-          <label className="label">
-            Job type
-            <select
-              className="select"
-              value={jobTypeFilter}
-              onChange={(event) => setJobTypeFilter(event.target.value)}
-            >
-              <option value="all">All types</option>
-              {jobTypes.map((type) => (
-                <option value={type} key={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Job type"
+            dropdownKey="jobType"
+            value={jobTypeFilter}
+            options={jobTypeOptions}
+            onChange={setJobTypeFilter}
+          />
 
-          <label className="label">
-            Salary period
-            <select
-              className="select"
-              value={salaryPeriodFilter}
-              onChange={(event) => setSalaryPeriodFilter(event.target.value)}
-            >
-              <option value="all">All salary periods</option>
-              {salaryPeriods.map((period) => (
-                <option value={period} key={period}>
-                  /{period}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Salary period"
+            dropdownKey="salaryPeriod"
+            value={salaryPeriodFilter}
+            options={salaryPeriodOptions}
+            onChange={setSalaryPeriodFilter}
+          />
 
-          <label className="label">
-            Listing type
-            <select
-              className="select"
-              value={premiumFilter}
-              onChange={(event) =>
-                setPremiumFilter(event.target.value as PremiumFilter)
-              }
-            >
-              <option value="all">All listings</option>
-              <option value="premium">Premium only</option>
-              <option value="normal">Normal only</option>
-            </select>
-          </label>
+          <FilterDropdown
+            label="Listing type"
+            dropdownKey="premium"
+            value={premiumFilter}
+            options={premiumOptions}
+            onChange={(value) => setPremiumFilter(value as PremiumFilter)}
+          />
         </div>
 
         <div className="jobs-filter-footer">
