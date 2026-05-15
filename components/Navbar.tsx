@@ -9,6 +9,7 @@ export default function Navbar() {
   const [email, setEmail] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function loadUser() {
     setLoading(true);
@@ -51,39 +52,77 @@ export default function Navbar() {
     await supabase.auth.signOut();
     setEmail(null);
     setRole(null);
+    setMenuOpen(false);
     window.location.href = "/";
+  }
+
+  function closeMenu() {
+    setMenuOpen(false);
   }
 
   return (
     <header className="navbar">
       <div className="nav-inner">
-        <Link href="/" className="logo">
-          HustleUp
-        </Link>
+        <div className="nav-top">
+          <Link href="/" className="logo" onClick={closeMenu}>
+            HustleUp
+          </Link>
 
-        <nav className="nav-links">
-          <Link href="/jobs">Jobs</Link>
-          <Link href="/pricing">Pricing</Link>
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? "✕" : "☰"}
+          </button>
+        </div>
+
+        <nav className={`nav-links ${menuOpen ? "nav-open" : ""}`}>
+          <Link href="/jobs" onClick={closeMenu}>
+            Jobs
+          </Link>
+
+          <Link href="/pricing" onClick={closeMenu}>
+            Pricing
+          </Link>
 
           {!loading && email && (role === "job_owner" || role === "admin") && (
-            <Link href="/post-job">Post Job</Link>
+            <Link href="/post-job" onClick={closeMenu}>
+              Post Job
+            </Link>
           )}
 
-          {!loading && email && <Link href="/applications">Applications</Link>}
+          {!loading && email && (
+            <Link href="/applications" onClick={closeMenu}>
+              Applications
+            </Link>
+          )}
 
-          {!loading && email && <Link href="/dashboard">Dashboard</Link>}
+          {!loading && email && (
+            <Link href="/dashboard" onClick={closeMenu}>
+              Dashboard
+            </Link>
+          )}
 
-          {!loading && email && <Link href="/profile">Profile</Link>}
+          {!loading && email && (
+            <Link href="/profile" onClick={closeMenu}>
+              Profile
+            </Link>
+          )}
 
           {!loading && email && role === "admin" && (
-            <Link href="/admin">Admin</Link>
+            <Link href="/admin" onClick={closeMenu}>
+              Admin
+            </Link>
           )}
 
           {!loading &&
             (email ? (
               <button onClick={signOut}>Logout</button>
             ) : (
-              <Link href="/auth">Login</Link>
+              <Link href="/auth" onClick={closeMenu}>
+                Login
+              </Link>
             ))}
         </nav>
       </div>
