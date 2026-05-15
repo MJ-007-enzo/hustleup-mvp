@@ -13,6 +13,53 @@ declare global {
 
 type PaidTier = "basic" | "premium";
 
+function BenefitItem({ children }: { children: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        width: "100%",
+        padding: "12px 13px",
+        borderRadius: 16,
+        background: "rgba(255,255,255,0.78)",
+        border: "1px solid rgba(255,90,31,0.12)",
+        boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
+        marginTop: 12,
+      }}
+    >
+      <span
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 999,
+          display: "grid",
+          placeItems: "center",
+          background: "var(--brand-soft)",
+          color: "var(--brand-dark)",
+          fontWeight: 850,
+          flexShrink: 0,
+          fontSize: 13,
+        }}
+      >
+        ✓
+      </span>
+
+      <span
+        style={{
+          color: "var(--muted)",
+          fontWeight: 750,
+          fontSize: 15,
+          lineHeight: 1.35,
+        }}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
 export default function PricingPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,7 +152,9 @@ export default function PricingPage() {
 
     if (!scriptLoaded) {
       setBusyTier(null);
-      setMessage("Razorpay checkout failed to load. Check your internet connection.");
+      setMessage(
+        "Razorpay checkout failed to load. Check your internet connection."
+      );
       return;
     }
 
@@ -175,13 +224,51 @@ export default function PricingPage() {
   }
 
   function planButton(tier: Tier, label: string) {
+    const baseButtonStyle = {
+      minHeight: 54,
+      borderRadius: 18,
+      padding: "0 22px",
+      fontWeight: 850,
+      fontSize: 15,
+      letterSpacing: "-0.01em",
+      boxShadow: "0 14px 34px rgba(17,24,39,0.08)",
+    };
+
+    const secondaryButtonStyle = {
+      ...baseButtonStyle,
+      background:
+        "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+      border: "1px solid rgba(255,90,31,0.16)",
+      color: "var(--premium)",
+    };
+
+    const disabledButtonStyle = {
+      ...baseButtonStyle,
+      background:
+        "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+      border: "1px solid rgba(255,90,31,0.16)",
+      color: "var(--premium)",
+      opacity: 1,
+      cursor: "not-allowed",
+    };
+
+    const primaryButtonStyle = {
+      ...baseButtonStyle,
+      boxShadow:
+        "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
+    };
+
     if (loading) {
-      return <button className="btn">Checking...</button>;
+      return (
+        <button className="btn" style={secondaryButtonStyle}>
+          Checking...
+        </button>
+      );
     }
 
     if (!profile) {
       return (
-        <Link className="btn btn-primary" href="/auth">
+        <Link className="btn btn-primary" style={primaryButtonStyle} href="/auth">
           Login to choose
         </Link>
       );
@@ -189,7 +276,7 @@ export default function PricingPage() {
 
     if (profile.tier === tier) {
       return (
-        <button className="btn" disabled>
+        <button className="btn" style={disabledButtonStyle} disabled>
           Current plan
         </button>
       );
@@ -199,6 +286,7 @@ export default function PricingPage() {
       return (
         <button
           className="btn"
+          style={secondaryButtonStyle}
           onClick={chooseBeginner}
           disabled={busyTier === "beginner"}
         >
@@ -210,6 +298,7 @@ export default function PricingPage() {
     return (
       <button
         className="btn btn-primary"
+        style={primaryButtonStyle}
         onClick={() => startPayment(tier as PaidTier)}
         disabled={busyTier === tier}
       >
@@ -242,45 +331,51 @@ export default function PricingPage() {
 
       {profile && (
         <div className="notice">
-          You are logged in as <strong>{profile.full_name}</strong>. Current plan:{" "}
-          <strong>{profile.tier}</strong>.
+          You are logged in as <strong>{profile.full_name}</strong>. Current
+          plan: <strong>{profile.tier}</strong>.
         </div>
       )}
 
-     <section className="grid grid-3">
-  <div className="card">
-    <span className="tag">Beginner</span>
-    <div className="price">Free</div>
-    <p>For new job seekers testing HustleUp.</p>
-    <p>✓ Create profile</p>
-    <p>✓ Browse jobs</p>
-    <p>✓ Limited applications</p>
-    <p>✓ Basic visibility</p>
-    {planButton("beginner", "Choose Beginner")}
-  </div>
+      <section className="grid grid-3">
+        <div className="card">
+          <span className="tag">Beginner</span>
+          <div className="price">Free</div>
+          <p>For new job seekers testing HustleUp.</p>
 
-  <div className="card">
-    <span className="tag">Basic</span>
-    <div className="price">₹99</div>
-    <p>For active users who want better opportunities.</p>
-    <p>✓ More job access</p>
-    <p>✓ Better profile visibility</p>
-    <p>✓ Application tracking</p>
-    <p>✓ Basic badge</p>
-    {planButton("basic", "Pay ₹99")}
-  </div>
+          <BenefitItem>Create profile</BenefitItem>
+          <BenefitItem>Browse jobs</BenefitItem>
+          <BenefitItem>Limited applications</BenefitItem>
+          <BenefitItem>Basic visibility</BenefitItem>
 
-  <div className="card pricing-card-premium">
-    <span className="premium-badge">Premium</span>
-    <div className="price">₹299</div>
-    <p>For serious job seekers who want priority positioning.</p>
-    <p>✓ Premium badge</p>
-    <p>✓ Priority job access</p>
-    <p>✓ Stronger profile ranking</p>
-    <p>✓ Future certification access</p>
-    {planButton("premium", "Pay ₹299")}
-  </div>
-</section>
+          <div style={{ marginTop: 26 }}>{planButton("beginner", "Choose Beginner")}</div>
+        </div>
+
+        <div className="card">
+          <span className="tag">Basic</span>
+          <div className="price">₹99</div>
+          <p>For active users who want better opportunities.</p>
+
+          <BenefitItem>More job access</BenefitItem>
+          <BenefitItem>Better profile visibility</BenefitItem>
+          <BenefitItem>Application tracking</BenefitItem>
+          <BenefitItem>Basic badge</BenefitItem>
+
+          <div style={{ marginTop: 26 }}>{planButton("basic", "Pay ₹99")}</div>
+        </div>
+
+        <div className="card pricing-card-premium">
+          <span className="premium-badge">Premium</span>
+          <div className="price">₹299</div>
+          <p>For serious job seekers who want priority positioning.</p>
+
+          <BenefitItem>Premium badge</BenefitItem>
+          <BenefitItem>Priority job access</BenefitItem>
+          <BenefitItem>Stronger profile ranking</BenefitItem>
+          <BenefitItem>Future certification access</BenefitItem>
+
+          <div style={{ marginTop: 26 }}>{planButton("premium", "Pay ₹299")}</div>
+        </div>
+      </section>
 
       <section className="card" style={{ marginTop: 24 }}>
         <h2>For job owners</h2>

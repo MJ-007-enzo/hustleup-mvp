@@ -119,6 +119,30 @@ const salaryTypeOptions: DropdownOption[] = [
   { label: "/month", value: "month" },
 ];
 
+const listingTips = [
+  "Clear job title",
+  "Exact timing and salary",
+  "Correct city location",
+  "Real responsibilities",
+  "Benefits or perks",
+  "Who can apply",
+];
+
+const formValueStyle = {
+  color: "var(--premium)",
+  fontSize: "16px",
+  fontWeight: 750,
+  fontFamily: "inherit",
+};
+
+const textareaValueStyle = {
+  color: "var(--premium)",
+  fontSize: "15px",
+  fontWeight: 600,
+  fontFamily: "inherit",
+  lineHeight: 1.55,
+};
+
 function cleanCityName(value: string) {
   const cleanedValue = value.trim();
 
@@ -147,6 +171,16 @@ function getNumber(value: string) {
   }
 
   return parsed;
+}
+
+function capitalizeWords(value: string) {
+  return value.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function capitalizeSentences(value: string) {
+  return value.replace(/(^\s*[a-z])|([.!?]\s+[a-z])/g, (match) =>
+    match.toUpperCase()
+  );
 }
 
 export default function PostJobPage() {
@@ -345,8 +379,8 @@ export default function PostJobPage() {
               "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
             color: "var(--premium)",
             padding: "0 14px",
-            fontSize: 15,
-            fontWeight: 900,
+            fontSize: 16,
+            fontWeight: 750,
             fontFamily: "inherit",
             cursor: "pointer",
             boxShadow: isOpen
@@ -372,6 +406,8 @@ export default function PostJobPage() {
               transition:
                 "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
               flexShrink: 0,
+              fontSize: 14,
+              fontWeight: 750,
             }}
           >
             ↓
@@ -420,8 +456,8 @@ export default function PostJobPage() {
                     background: selected ? "var(--brand-soft)" : "transparent",
                     color: selected ? "var(--brand-dark)" : "var(--premium)",
                     padding: "10px 12px",
-                    fontSize: 14,
-                    fontWeight: selected ? 950 : 800,
+                    fontSize: 15,
+                    fontWeight: selected ? 750 : 650,
                     fontFamily: "inherit",
                     textAlign: "left",
                     cursor: "pointer",
@@ -574,14 +610,126 @@ export default function PostJobPage() {
             View Details popup will show the full information.
           </p>
 
-          <div className="card" style={{ marginTop: 18 }}>
-            <h3>What makes a good listing?</h3>
-            <p>✓ Clear job title</p>
-            <p>✓ Exact timing and salary</p>
-            <p>✓ Correct city location</p>
-            <p>✓ Real responsibilities</p>
-            <p>✓ Benefits or perks</p>
-            <p>✓ Who can apply</p>
+          <div
+            className="card"
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              marginTop: 18,
+              padding: 24,
+              borderRadius: 30,
+              border: "1px solid rgba(255, 90, 31, 0.18)",
+              background:
+                "radial-gradient(circle at 12% 8%, rgba(255,90,31,0.12), transparent 28%), radial-gradient(circle at 92% 0%, rgba(245,158,11,0.11), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+              boxShadow:
+                "0 30px 80px rgba(17,24,39,0.1), 0 14px 36px rgba(255,90,31,0.08)",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: "0 0 auto 0",
+                height: 5,
+                background: "var(--brand-gradient)",
+              }}
+            />
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 18,
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 16,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "var(--premium-gradient)",
+                  color: "white",
+                  boxShadow: "0 14px 30px rgba(17, 24, 39, 0.16)",
+                  fontWeight: 900,
+                  fontSize: 18,
+                }}
+              >
+                ✓
+              </div>
+
+              <div>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    width: "fit-content",
+                    padding: "5px 9px",
+                    borderRadius: 999,
+                    background: "var(--brand-soft)",
+                    color: "var(--brand-dark)",
+                    fontSize: 11,
+                    fontWeight: 850,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    marginBottom: 6,
+                  }}
+                >
+                  Listing guide
+                </span>
+
+                <h3 style={{ margin: 0 }}>What makes a good listing?</h3>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              {listingTips.map((tip) => (
+                <div
+                  key={tip}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 13px",
+                    borderRadius: 16,
+                    background: "rgba(255,255,255,0.76)",
+                    border: "1px solid rgba(255,90,31,0.12)",
+                    boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 999,
+                      display: "grid",
+                      placeItems: "center",
+                      background: "var(--brand-soft)",
+                      color: "var(--brand-dark)",
+                      fontWeight: 850,
+                      flexShrink: 0,
+                      fontSize: 13,
+                    }}
+                  >
+                    ✓
+                  </span>
+
+                  <span
+                    style={{
+                      color: "var(--muted)",
+                      fontWeight: 750,
+                    }}
+                  >
+                    {tip}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -592,8 +740,9 @@ export default function PostJobPage() {
             Job title
             <input
               className="input"
+              style={formValueStyle}
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => setTitle(capitalizeWords(event.target.value))}
               placeholder="Example: Cafe Assistant"
               required
             />
@@ -603,8 +752,11 @@ export default function PostJobPage() {
             Company / shop name
             <input
               className="input"
+              style={formValueStyle}
               value={companyName}
-              onChange={(event) => setCompanyName(event.target.value)}
+              onChange={(event) =>
+                setCompanyName(capitalizeWords(event.target.value))
+              }
               placeholder="Example: Bright Cafe"
               required
             />
@@ -622,11 +774,12 @@ export default function PostJobPage() {
             Location
             <input
               className="input"
+              style={formValueStyle}
               value={location}
               onFocus={() => setOpenDropdown("city")}
               onClick={() => setOpenDropdown("city")}
               onChange={(event) => {
-                setLocation(event.target.value);
+                setLocation(capitalizeWords(event.target.value));
                 setOpenDropdown("city");
               }}
               onBlur={() => {
@@ -677,10 +830,10 @@ export default function PostJobPage() {
                         color: "var(--premium)",
                         borderRadius: "12px",
                         padding: "12px",
-                        fontWeight: 850,
+                        fontWeight: 750,
                         cursor: "pointer",
                         fontFamily: "inherit",
-                        fontSize: "14px",
+                        fontSize: "15px",
                       }}
                     >
                       {city}
@@ -691,7 +844,7 @@ export default function PostJobPage() {
                     style={{
                       padding: "12px",
                       color: "var(--muted)",
-                      fontWeight: 750,
+                      fontWeight: 650,
                     }}
                   >
                     No city found. You can type manually.
@@ -732,7 +885,14 @@ export default function PostJobPage() {
                 }}
               />
 
-              <span>to</span>
+              <span
+                style={{
+                  fontWeight: 750,
+                  color: "var(--muted)",
+                }}
+              >
+                to
+              </span>
 
               <PremiumDropdown
                 dropdownKey="endTime"
@@ -762,6 +922,7 @@ export default function PostJobPage() {
                   touchAction: "none",
                   userSelect: "none",
                   WebkitUserSelect: "none",
+                  fontWeight: 800,
                 }}
                 onPointerDown={(event) => {
                   event.preventDefault();
@@ -782,6 +943,7 @@ export default function PostJobPage() {
                 className="salary-input"
                 type="text"
                 inputMode="numeric"
+                style={formValueStyle}
                 value={salaryText}
                 onChange={(event) => {
                   setSalaryText(cleanNumberInput(event.target.value));
@@ -802,6 +964,7 @@ export default function PostJobPage() {
                   touchAction: "none",
                   userSelect: "none",
                   WebkitUserSelect: "none",
+                  fontWeight: 800,
                 }}
                 onPointerDown={(event) => {
                   event.preventDefault();
@@ -831,8 +994,11 @@ export default function PostJobPage() {
             Requirements
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={requirements}
-              onChange={(event) => setRequirements(event.target.value)}
+              onChange={(event) =>
+                setRequirements(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: Basic communication, punctuality, customer handling"
             />
           </label>
@@ -843,8 +1009,11 @@ export default function PostJobPage() {
             Responsibilities
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={responsibilities}
-              onChange={(event) => setResponsibilities(event.target.value)}
+              onChange={(event) =>
+                setResponsibilities(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: Handle customers, take orders, maintain counter cleanliness, assist billing."
             />
           </label>
@@ -853,8 +1022,11 @@ export default function PostJobPage() {
             Who can apply?
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={whoCanApply}
-              onChange={(event) => setWhoCanApply(event.target.value)}
+              onChange={(event) =>
+                setWhoCanApply(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: College students, freshers, people available in evening shift."
             />
           </label>
@@ -863,8 +1035,11 @@ export default function PostJobPage() {
             Benefits / perks
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={benefits}
-              onChange={(event) => setBenefits(event.target.value)}
+              onChange={(event) =>
+                setBenefits(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: Free snacks, flexible timing, certificate, performance bonus."
             />
           </label>
@@ -874,6 +1049,7 @@ export default function PostJobPage() {
               Openings
               <input
                 className="input"
+                style={formValueStyle}
                 type="number"
                 min={1}
                 value={openings}
@@ -885,8 +1061,11 @@ export default function PostJobPage() {
               Work address / area
               <input
                 className="input"
+                style={formValueStyle}
                 value={workAddress}
-                onChange={(event) => setWorkAddress(event.target.value)}
+                onChange={(event) =>
+                  setWorkAddress(capitalizeWords(event.target.value))
+                }
                 placeholder="Example: Near Central Bus Stand, Trichy"
               />
             </label>
@@ -896,8 +1075,11 @@ export default function PostJobPage() {
             Contact note
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={contactNote}
-              onChange={(event) => setContactNote(event.target.value)}
+              onChange={(event) =>
+                setContactNote(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: Shortlisted applicants will be contacted within 24 hours."
             />
           </label>

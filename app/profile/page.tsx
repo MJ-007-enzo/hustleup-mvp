@@ -116,6 +116,21 @@ const tamilNaduCities = [
   "Ooty",
 ];
 
+const formValueStyle = {
+  color: "var(--premium)",
+  fontSize: "16px",
+  fontWeight: 750,
+  fontFamily: "inherit",
+};
+
+const textareaValueStyle = {
+  color: "var(--premium)",
+  fontSize: "15px",
+  fontWeight: 600,
+  fontFamily: "inherit",
+  lineHeight: 1.55,
+};
+
 function cleanCityName(value: string) {
   const cleanedValue = value.trim();
 
@@ -144,6 +159,16 @@ function getNumberFromSalaryText(value: string) {
   }
 
   return parsed;
+}
+
+function capitalizeWords(value: string) {
+  return value.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function capitalizeSentences(value: string) {
+  return value.replace(/(^\s*[a-z])|([.!?]\s+[a-z])/g, (match) =>
+    match.toUpperCase()
+  );
 }
 
 export default function ProfilePage() {
@@ -179,7 +204,6 @@ export default function ProfilePage() {
 
   const availability = `${startTime} to ${endTime}`;
   const expectedSalary = `₹${salaryText || "50"}/${salaryPeriod}`;
-  const salaryAmount = getNumberFromSalaryText(salaryText);
 
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -486,8 +510,8 @@ export default function ProfilePage() {
               "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
             color: "var(--premium)",
             padding: "0 14px",
-            fontSize: 15,
-            fontWeight: 900,
+            fontSize: 16,
+            fontWeight: 750,
             fontFamily: "inherit",
             cursor: "pointer",
             boxShadow: isOpen
@@ -513,6 +537,8 @@ export default function ProfilePage() {
               transition:
                 "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
               flexShrink: 0,
+              fontSize: 14,
+              fontWeight: 750,
             }}
           >
             ↓
@@ -561,8 +587,8 @@ export default function ProfilePage() {
                     background: selected ? "var(--brand-soft)" : "transparent",
                     color: selected ? "var(--brand-dark)" : "var(--premium)",
                     padding: "10px 12px",
-                    fontSize: 14,
-                    fontWeight: selected ? 950 : 800,
+                    fontSize: 15,
+                    fontWeight: selected ? 750 : 650,
                     fontFamily: "inherit",
                     textAlign: "left",
                     cursor: "pointer",
@@ -698,7 +724,7 @@ export default function ProfilePage() {
                   color: "white",
                   border: "1px solid rgba(255,255,255,0.14)",
                   fontSize: 12,
-                  fontWeight: 950,
+                  fontWeight: 850,
                   textTransform: "uppercase",
                 }}
               >
@@ -720,7 +746,7 @@ export default function ProfilePage() {
               style={{
                 display: "block",
                 color: "var(--muted)",
-                fontWeight: 950,
+                fontWeight: 850,
                 textTransform: "uppercase",
                 marginBottom: 8,
               }}
@@ -795,8 +821,11 @@ export default function ProfilePage() {
             Full name
             <input
               className="input"
+              style={formValueStyle}
               value={fullName}
-              onChange={(event) => setFullName(event.target.value)}
+              onChange={(event) =>
+                setFullName(capitalizeWords(event.target.value))
+              }
               placeholder="Example: Krishna Kumar"
             />
           </label>
@@ -805,8 +834,11 @@ export default function ProfilePage() {
             Occupation
             <input
               className="input"
+              style={formValueStyle}
               value={occupation}
-              onChange={(event) => setOccupation(event.target.value)}
+              onChange={(event) =>
+                setOccupation(capitalizeWords(event.target.value))
+              }
               placeholder="Example: College student, fresher, cafe owner"
             />
           </label>
@@ -824,11 +856,12 @@ export default function ProfilePage() {
               Location
               <input
                 className="input"
+                style={formValueStyle}
                 value={location}
                 onFocus={() => setOpenDropdown("city")}
                 onClick={() => setOpenDropdown("city")}
                 onChange={(event) => {
-                  setLocation(event.target.value);
+                  setLocation(capitalizeWords(event.target.value));
                   setOpenDropdown("city");
                 }}
                 onBlur={() => {
@@ -878,10 +911,10 @@ export default function ProfilePage() {
                           color: "var(--premium)",
                           borderRadius: "12px",
                           padding: "12px",
-                          fontWeight: 850,
+                          fontWeight: 750,
                           cursor: "pointer",
                           fontFamily: "inherit",
-                          fontSize: "14px",
+                          fontSize: "15px",
                         }}
                       >
                         {city}
@@ -892,7 +925,7 @@ export default function ProfilePage() {
                       style={{
                         padding: "12px",
                         color: "var(--muted)",
-                        fontWeight: 750,
+                        fontWeight: 650,
                       }}
                     >
                       No city found. You can type manually.
@@ -906,6 +939,7 @@ export default function ProfilePage() {
               Phone
               <input
                 className="input"
+                style={formValueStyle}
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="Example: +91 98765 43210"
@@ -917,8 +951,11 @@ export default function ProfilePage() {
             Short bio
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={bio}
-              onChange={(event) => setBio(event.target.value)}
+              onChange={(event) =>
+                setBio(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: I am a 3rd year student looking for evening part-time work."
             />
           </label>
@@ -929,9 +966,12 @@ export default function ProfilePage() {
             Skills
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={skills}
-              onChange={(event) => setSkills(event.target.value)}
-              placeholder="Example: customer handling, MS Excel, sales, typing, communication"
+              onChange={(event) =>
+                setSkills(capitalizeSentences(event.target.value))
+              }
+              placeholder="Example: Customer handling, MS Excel, sales, typing, communication"
             />
           </label>
 
@@ -939,8 +979,11 @@ export default function ProfilePage() {
             Experience
             <textarea
               className="textarea"
+              style={textareaValueStyle}
               value={experience}
-              onChange={(event) => setExperience(event.target.value)}
+              onChange={(event) =>
+                setExperience(capitalizeSentences(event.target.value))
+              }
               placeholder="Example: 2 months cafe helper experience, college event volunteering"
             />
           </label>
@@ -967,7 +1010,14 @@ export default function ProfilePage() {
                   }}
                 />
 
-                <span>to</span>
+                <span
+                  style={{
+                    fontWeight: 750,
+                    color: "var(--muted)",
+                  }}
+                >
+                  to
+                </span>
 
                 <PremiumDropdown
                   dropdownKey="endTime"
@@ -997,6 +1047,7 @@ export default function ProfilePage() {
                     touchAction: "none",
                     userSelect: "none",
                     WebkitUserSelect: "none",
+                    fontWeight: 800,
                   }}
                   onPointerDown={(event) => {
                     event.preventDefault();
@@ -1017,6 +1068,7 @@ export default function ProfilePage() {
                   className="salary-input"
                   type="text"
                   inputMode="numeric"
+                  style={formValueStyle}
                   value={salaryText}
                   onChange={(event) => {
                     setSalaryText(cleanSalaryInput(event.target.value));
@@ -1037,6 +1089,7 @@ export default function ProfilePage() {
                     touchAction: "none",
                     userSelect: "none",
                     WebkitUserSelect: "none",
+                    fontWeight: 800,
                   }}
                   onPointerDown={(event) => {
                     event.preventDefault();
