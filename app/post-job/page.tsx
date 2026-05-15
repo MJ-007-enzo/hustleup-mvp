@@ -17,6 +17,14 @@ export default function PostJobPage() {
   const [salaryAmount, setSalaryAmount] = useState(500);
   const [requirements, setRequirements] = useState("");
   const [isPremium, setIsPremium] = useState(false);
+
+  const [responsibilities, setResponsibilities] = useState("");
+  const [whoCanApply, setWhoCanApply] = useState("");
+  const [benefits, setBenefits] = useState("");
+  const [openings, setOpenings] = useState(1);
+  const [workAddress, setWorkAddress] = useState("");
+  const [contactNote, setContactNote] = useState("");
+
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -78,6 +86,13 @@ export default function PostJobPage() {
       requirements,
       is_premium: isPremium,
       status: "open",
+
+      responsibilities,
+      who_can_apply: whoCanApply,
+      benefits,
+      openings,
+      work_address: workAddress,
+      contact_note: contactNote,
     });
 
     setBusy(false);
@@ -90,9 +105,20 @@ export default function PostJobPage() {
     setTitle("");
     setCompanyName("");
     setLocation("");
+    setJobType("Part-time");
     setDuration("");
+    setSalaryType("day");
+    setSalaryAmount(500);
     setRequirements("");
     setIsPremium(false);
+
+    setResponsibilities("");
+    setWhoCanApply("");
+    setBenefits("");
+    setOpenings(1);
+    setWorkAddress("");
+    setContactNote("");
+
     setMessage("Job posted successfully.");
   }
 
@@ -133,18 +159,31 @@ export default function PostJobPage() {
           <span className="badge">For job owners</span>
           <h1>Post a part-time job.</h1>
           <p>
-            Add clear salary, location, timing, and requirements. Premium jobs
-            appear with a stronger badge.
+            Add clear salary, location, timing, requirements, responsibilities,
+            benefits, and who can apply. The job card will stay clean, while the
+            View Details popup will show the full information.
           </p>
+
+          <div className="card" style={{ marginTop: 18 }}>
+            <h3>What makes a good listing?</h3>
+            <p>✓ Clear job title</p>
+            <p>✓ Exact timing and salary</p>
+            <p>✓ Real responsibilities</p>
+            <p>✓ Benefits or perks</p>
+            <p>✓ Who can apply</p>
+          </div>
         </div>
 
         <form className="card form" onSubmit={submit}>
+          <span className="tag">Basic job details</span>
+
           <label className="label">
             Job title
             <input
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              placeholder="Example: Cafe Assistant"
               required
             />
           </label>
@@ -155,6 +194,7 @@ export default function PostJobPage() {
               className="input"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Example: Bright Cafe"
               required
             />
           </label>
@@ -176,6 +216,7 @@ export default function PostJobPage() {
               className="input"
               value={jobType}
               onChange={(e) => setJobType(e.target.value)}
+              placeholder="Example: Part-time"
               required
             />
           </label>
@@ -226,6 +267,72 @@ export default function PostJobPage() {
               className="textarea"
               value={requirements}
               onChange={(e) => setRequirements(e.target.value)}
+              placeholder="Example: Basic communication, punctuality, customer handling"
+            />
+          </label>
+
+          <span className="tag">Full job details</span>
+
+          <label className="label">
+            Responsibilities
+            <textarea
+              className="textarea"
+              value={responsibilities}
+              onChange={(e) => setResponsibilities(e.target.value)}
+              placeholder="Example: Handle customers, take orders, maintain counter cleanliness, assist billing."
+            />
+          </label>
+
+          <label className="label">
+            Who can apply?
+            <textarea
+              className="textarea"
+              value={whoCanApply}
+              onChange={(e) => setWhoCanApply(e.target.value)}
+              placeholder="Example: College students, freshers, people available in evening shift."
+            />
+          </label>
+
+          <label className="label">
+            Benefits / perks
+            <textarea
+              className="textarea"
+              value={benefits}
+              onChange={(e) => setBenefits(e.target.value)}
+              placeholder="Example: Free snacks, flexible timing, certificate, performance bonus."
+            />
+          </label>
+
+          <div className="grid grid-2">
+            <label className="label">
+              Openings
+              <input
+                className="input"
+                type="number"
+                min={1}
+                value={openings}
+                onChange={(e) => setOpenings(Number(e.target.value))}
+              />
+            </label>
+
+            <label className="label">
+              Work address / area
+              <input
+                className="input"
+                value={workAddress}
+                onChange={(e) => setWorkAddress(e.target.value)}
+                placeholder="Example: Near Central Bus Stand, Trichy"
+              />
+            </label>
+          </div>
+
+          <label className="label">
+            Contact note
+            <textarea
+              className="textarea"
+              value={contactNote}
+              onChange={(e) => setContactNote(e.target.value)}
+              placeholder="Example: Shortlisted applicants will be contacted within 24 hours."
             />
           </label>
 

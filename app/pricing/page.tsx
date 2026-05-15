@@ -247,40 +247,40 @@ export default function PricingPage() {
         </div>
       )}
 
-      <section className="grid grid-3">
-        <div className="card">
-          <span className="tag">Beginner</span>
-          <div className="price">Free</div>
-          <p>For new job seekers testing HustleUp.</p>
-          <p>✓ Create profile</p>
-          <p>✓ Browse jobs</p>
-          <p>✓ Limited applications</p>
-          <p>✓ Basic visibility</p>
-          {planButton("beginner", "Choose Beginner")}
-        </div>
+     <section className="grid grid-3">
+  <div className="card">
+    <span className="tag">Beginner</span>
+    <div className="price">Free</div>
+    <p>For new job seekers testing HustleUp.</p>
+    <p>✓ Create profile</p>
+    <p>✓ Browse jobs</p>
+    <p>✓ Limited applications</p>
+    <p>✓ Basic visibility</p>
+    {planButton("beginner", "Choose Beginner")}
+  </div>
 
-        <div className="card">
-          <span className="tag">Basic</span>
-          <div className="price">₹99</div>
-          <p>For active users who want better opportunities.</p>
-          <p>✓ More job access</p>
-          <p>✓ Better profile visibility</p>
-          <p>✓ Application tracking</p>
-          <p>✓ Basic badge</p>
-          {planButton("basic", "Pay ₹99")}
-        </div>
+  <div className="card">
+    <span className="tag">Basic</span>
+    <div className="price">₹99</div>
+    <p>For active users who want better opportunities.</p>
+    <p>✓ More job access</p>
+    <p>✓ Better profile visibility</p>
+    <p>✓ Application tracking</p>
+    <p>✓ Basic badge</p>
+    {planButton("basic", "Pay ₹99")}
+  </div>
 
-        <div className="card">
-          <span className="tag">Premium</span>
-          <div className="price">₹299</div>
-          <p>For serious job seekers who want priority positioning.</p>
-          <p>✓ Premium badge</p>
-          <p>✓ Priority job access</p>
-          <p>✓ Stronger profile ranking</p>
-          <p>✓ Future certification access</p>
-          {planButton("premium", "Pay ₹299")}
-        </div>
-      </section>
+  <div className="card pricing-card-premium">
+    <span className="premium-badge">Premium</span>
+    <div className="price">₹299</div>
+    <p>For serious job seekers who want priority positioning.</p>
+    <p>✓ Premium badge</p>
+    <p>✓ Priority job access</p>
+    <p>✓ Stronger profile ranking</p>
+    <p>✓ Future certification access</p>
+    {planButton("premium", "Pay ₹299")}
+  </div>
+</section>
 
       <section className="card" style={{ marginTop: 24 }}>
         <h2>For job owners</h2>

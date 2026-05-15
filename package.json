@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
+    "@tailwindcss/postcss": "^4.3.0",
     "next": "latest",
+    "postcss": "^8.5.14",
     "razorpay": "^2.9.6",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@types/node": "latest",

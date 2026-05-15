@@ -62,6 +62,12 @@ export default function HomePage() {
             simple application system.
           </p>
 
+          <div className="hero-proof">
+              <span>Verified profiles</span>
+              <span>Application tracking</span>
+              <span>Premium access</span>
+          </div>
+
           <div className="actions">
             <Link className="btn btn-primary" href="/auth">
               Get started
