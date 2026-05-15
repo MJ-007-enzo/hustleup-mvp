@@ -1,10 +1,29 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
 type SalaryType = "hour" | "day" | "week" | "month";
+
+type DropdownKey =
+  | "city"
+  | "jobType"
+  | "startTime"
+  | "endTime"
+  | "salaryType"
+  | null;
+
+type DropdownOption = {
+  label: string;
+  value: string;
+};
 
 type UpgradedProfile = Profile & {
   location?: string | null;
@@ -57,6 +76,49 @@ const tamilNaduCities = [
   "Ooty",
 ];
 
+const timeOptions = [
+  "6:00 AM",
+  "7:00 AM",
+  "8:00 AM",
+  "9:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+  "7:00 PM",
+  "8:00 PM",
+  "9:00 PM",
+  "10:00 PM",
+  "11:00 PM",
+];
+
+const timeDropdownOptions: DropdownOption[] = timeOptions.map((time) => ({
+  label: time,
+  value: time,
+}));
+
+const jobTypeOptions: DropdownOption[] = [
+  { label: "Part-time", value: "Part-time" },
+  { label: "Full-time", value: "Full-time" },
+  { label: "Internship", value: "Internship" },
+  { label: "Weekend job", value: "Weekend job" },
+  { label: "Event work", value: "Event work" },
+  { label: "Remote work", value: "Remote work" },
+  { label: "Flexible work", value: "Flexible work" },
+];
+
+const salaryTypeOptions: DropdownOption[] = [
+  { label: "/hour", value: "hour" },
+  { label: "/day", value: "day" },
+  { label: "/week", value: "week" },
+  { label: "/month", value: "month" },
+];
+
 function cleanCityName(value: string) {
   const cleanedValue = value.trim();
 
@@ -67,6 +129,26 @@ function cleanCityName(value: string) {
   return match || cleanedValue;
 }
 
+function cleanNumberInput(value: string) {
+  const numbersOnly = value.replace(/\D/g, "");
+
+  if (!numbersOnly) {
+    return "";
+  }
+
+  return numbersOnly.replace(/^0+(?=\d)/, "");
+}
+
+function getNumber(value: string) {
+  const parsed = Number(value);
+
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+
+  return parsed;
+}
+
 export default function PostJobPage() {
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -75,9 +157,10 @@ export default function PostJobPage() {
   const [companyName, setCompanyName] = useState("");
   const [location, setLocation] = useState("");
   const [jobType, setJobType] = useState("Part-time");
-  const [duration, setDuration] = useState("");
+  const [startTime, setStartTime] = useState("5:00 PM");
+  const [endTime, setEndTime] = useState("9:00 PM");
   const [salaryType, setSalaryType] = useState<SalaryType>("day");
-  const [salaryAmount, setSalaryAmount] = useState(500);
+  const [salaryText, setSalaryText] = useState("500");
   const [requirements, setRequirements] = useState("");
   const [isPremium, setIsPremium] = useState(false);
 
@@ -88,10 +171,18 @@ export default function PostJobPage() {
   const [workAddress, setWorkAddress] = useState("");
   const [contactNote, setContactNote] = useState("");
 
-  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
+  const [salaryMotion, setSalaryMotion] = useState(false);
+  const [timingMotion, setTimingMotion] = useState(false);
 
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const holdDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const duration = `${startTime} to ${endTime}`;
+  const salaryAmount = getNumber(salaryText);
 
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -107,6 +198,29 @@ export default function PostJobPage() {
 
   useEffect(() => {
     checkAccess();
+  }, []);
+
+  useEffect(() => {
+    function closeDropdown() {
+      setOpenDropdown(null);
+    }
+
+    function stopHoldFromWindow() {
+      stopSalaryHold();
+    }
+
+    window.addEventListener("click", closeDropdown);
+    window.addEventListener("pointerup", stopHoldFromWindow);
+    window.addEventListener("pointercancel", stopHoldFromWindow);
+    window.addEventListener("blur", stopHoldFromWindow);
+
+    return () => {
+      window.removeEventListener("click", closeDropdown);
+      window.removeEventListener("pointerup", stopHoldFromWindow);
+      window.removeEventListener("pointercancel", stopHoldFromWindow);
+      window.removeEventListener("blur", stopHoldFromWindow);
+      stopSalaryHold();
+    };
   }, []);
 
   async function checkAccess() {
@@ -133,9 +247,207 @@ export default function PostJobPage() {
     setCheckingAccess(false);
   }
 
+  function triggerSalaryMotion() {
+    setSalaryMotion(false);
+    setTimeout(() => setSalaryMotion(true), 10);
+    setTimeout(() => setSalaryMotion(false), 260);
+  }
+
+  function triggerTimingMotion() {
+    setTimingMotion(false);
+    setTimeout(() => setTimingMotion(true), 10);
+    setTimeout(() => setTimingMotion(false), 300);
+  }
+
+  function stepSalary(type: "increase" | "decrease") {
+    triggerSalaryMotion();
+
+    setSalaryText((previousValue) => {
+      const currentAmount = getNumber(previousValue) || 0;
+
+      if (type === "decrease") {
+        return String(Math.max(50, currentAmount - 50));
+      }
+
+      return String(currentAmount + 50);
+    });
+  }
+
+  function startSalaryHold(type: "increase" | "decrease") {
+    stopSalaryHold();
+
+    stepSalary(type);
+
+    holdDelayRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => {
+        stepSalary(type);
+      }, 70);
+    }, 280);
+  }
+
+  function stopSalaryHold() {
+    if (holdDelayRef.current) {
+      clearTimeout(holdDelayRef.current);
+      holdDelayRef.current = null;
+    }
+
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+  }
+
   function selectCity(city: string) {
     setLocation(city);
-    setCityDropdownOpen(false);
+    setOpenDropdown(null);
+  }
+
+  function selectedDropdownLabel(options: DropdownOption[], value: string) {
+    return options.find((option) => option.value === value)?.label || value;
+  }
+
+  function PremiumDropdown({
+    dropdownKey,
+    value,
+    options,
+    onChange,
+  }: {
+    dropdownKey: Exclude<DropdownKey, "city" | null>;
+    value: string;
+    options: DropdownOption[];
+    onChange: (value: string) => void;
+  }) {
+    const isOpen = openDropdown === dropdownKey;
+
+    return (
+      <div
+        style={{
+          position: "relative",
+          zIndex: isOpen ? 900 : 1,
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
+          style={{
+            width: "100%",
+            minHeight: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            border: isOpen
+              ? "1px solid rgba(255, 90, 31, 0.55)"
+              : "1px solid var(--line-warm)",
+            borderRadius: 16,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+            color: "var(--premium)",
+            padding: "0 14px",
+            fontSize: 15,
+            fontWeight: 900,
+            fontFamily: "inherit",
+            cursor: "pointer",
+            boxShadow: isOpen
+              ? "0 0 0 4px rgba(255, 90, 31, 0.1), 0 16px 32px rgba(17, 24, 39, 0.08)"
+              : "0 10px 22px rgba(17, 24, 39, 0.04)",
+            transition:
+              "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
+          }}
+        >
+          <span>{selectedDropdownLabel(options, value)}</span>
+
+          <span
+            style={{
+              width: 27,
+              height: 27,
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              background: isOpen ? "var(--brand-soft)" : "#ffffff",
+              color: isOpen ? "var(--brand-dark)" : "var(--muted)",
+              border: "1px solid var(--line-warm)",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition:
+                "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
+              flexShrink: 0,
+            }}
+          >
+            ↓
+          </span>
+        </button>
+
+        {isOpen && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "calc(100% + 8px)",
+              maxHeight: 230,
+              overflowY: "auto",
+              border: "1px solid var(--line-warm)",
+              borderRadius: 18,
+              background:
+                "linear-gradient(180deg, #ffffff 0%, #fffaf6 100%)",
+              boxShadow:
+                "0 28px 70px rgba(17, 24, 39, 0.18), 0 10px 24px rgba(255, 90, 31, 0.08)",
+              padding: 8,
+              animation: "menuDrop 0.16s ease both",
+            }}
+          >
+            {options.map((option) => {
+              const selected = option.value === value;
+
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpenDropdown(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 40,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    border: 0,
+                    borderRadius: 13,
+                    background: selected ? "var(--brand-soft)" : "transparent",
+                    color: selected ? "var(--brand-dark)" : "var(--premium)",
+                    padding: "10px 12px",
+                    fontSize: 14,
+                    fontWeight: selected ? 950 : 800,
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition:
+                      "background 0.14s ease, color 0.14s ease, transform 0.14s ease",
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "rgba(255, 90, 31, 0.07)";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "transparent";
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {selected && <span>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   async function submit(event: FormEvent) {
@@ -158,6 +470,7 @@ export default function PostJobPage() {
     }
 
     const cleanedLocation = cleanCityName(location);
+    const finalSalaryAmount = salaryAmount || 50;
 
     if (!cleanedLocation) {
       setMessage("Please select or enter a job location.");
@@ -173,7 +486,7 @@ export default function PostJobPage() {
       job_type: jobType,
       duration,
       salary_type: salaryType,
-      salary_amount: salaryAmount,
+      salary_amount: finalSalaryAmount,
       requirements,
       is_premium: isPremium,
       status: "open",
@@ -197,9 +510,10 @@ export default function PostJobPage() {
     setCompanyName("");
     setLocation("");
     setJobType("Part-time");
-    setDuration("");
+    setStartTime("5:00 PM");
+    setEndTime("9:00 PM");
     setSalaryType("day");
-    setSalaryAmount(500);
+    setSalaryText("500");
     setRequirements("");
     setIsPremium(false);
 
@@ -209,7 +523,7 @@ export default function PostJobPage() {
     setOpenings(1);
     setWorkAddress("");
     setContactNote("");
-    setCityDropdownOpen(false);
+    setOpenDropdown(null);
 
     setMessage("Job posted successfully.");
   }
@@ -301,30 +615,31 @@ export default function PostJobPage() {
             style={{
               position: "relative",
               overflow: "visible",
-              zIndex: cityDropdownOpen ? 500 : 1,
+              zIndex: openDropdown === "city" ? 900 : 1,
             }}
+            onClick={(event) => event.stopPropagation()}
           >
             Location
             <input
               className="input"
               value={location}
-              onFocus={() => setCityDropdownOpen(true)}
-              onClick={() => setCityDropdownOpen(true)}
+              onFocus={() => setOpenDropdown("city")}
+              onClick={() => setOpenDropdown("city")}
               onChange={(event) => {
                 setLocation(event.target.value);
-                setCityDropdownOpen(true);
+                setOpenDropdown("city");
               }}
               onBlur={() => {
                 setTimeout(() => {
                   setLocation((prev) => cleanCityName(prev));
-                  setCityDropdownOpen(false);
+                  setOpenDropdown(null);
                 }, 180);
               }}
               placeholder="Search or select city"
               required
             />
 
-            {cityDropdownOpen && (
+            {openDropdown === "city" && (
               <div
                 style={{
                   position: "absolute",
@@ -388,56 +703,129 @@ export default function PostJobPage() {
 
           <label className="label">
             Job type
-            <input
-              className="input"
+            <PremiumDropdown
+              dropdownKey="jobType"
               value={jobType}
-              onChange={(event) => setJobType(event.target.value)}
-              placeholder="Example: Part-time"
-              required
+              options={jobTypeOptions}
+              onChange={setJobType}
             />
           </label>
 
           <label className="label">
             Duration / timing
-            <input
-              className="input"
-              value={duration}
-              onChange={(event) => setDuration(event.target.value)}
-              placeholder="Example: 5pm to 9pm"
-            />
+            <div
+              className={`availability-picker ${
+                timingMotion ? "profile-control-pop" : ""
+              }`}
+              style={{
+                gridTemplateColumns: "1fr auto 1fr",
+                overflow: "visible",
+              }}
+            >
+              <PremiumDropdown
+                dropdownKey="startTime"
+                value={startTime}
+                options={timeDropdownOptions}
+                onChange={(value) => {
+                  setStartTime(value);
+                  triggerTimingMotion();
+                }}
+              />
+
+              <span>to</span>
+
+              <PremiumDropdown
+                dropdownKey="endTime"
+                value={endTime}
+                options={timeDropdownOptions}
+                onChange={(value) => {
+                  setEndTime(value);
+                  triggerTimingMotion();
+                }}
+              />
+            </div>
           </label>
 
-          <div className="grid grid-2">
-            <label className="label">
-              Salary type
-              <select
-                className="select"
-                value={salaryType}
-                onChange={(event) =>
-                  setSalaryType(event.target.value as SalaryType)
-                }
-              >
-                <option value="hour">Per hour</option>
-                <option value="day">Per day</option>
-                <option value="week">Per week</option>
-                <option value="month">Per month</option>
-              </select>
-            </label>
+          <label className="label">
+            Salary
+            <div
+              className={`salary-picker ${
+                salaryMotion ? "profile-control-pop" : ""
+              }`}
+            >
+              <span className="currency-chip">₹</span>
 
-            <label className="label">
-              Salary amount
+              <button
+                type="button"
+                className="salary-stepper"
+                style={{
+                  touchAction: "none",
+                  userSelect: "none",
+                  WebkitUserSelect: "none",
+                }}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  startSalaryHold("decrease");
+                }}
+                onPointerUp={(event) => {
+                  event.preventDefault();
+                  stopSalaryHold();
+                }}
+                onPointerLeave={stopSalaryHold}
+                onPointerCancel={stopSalaryHold}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                −
+              </button>
+
               <input
-                className="input"
-                type="number"
-                min={1}
-                value={salaryAmount}
-                onChange={(event) =>
-                  setSalaryAmount(Number(event.target.value))
-                }
-                required
+                className="salary-input"
+                type="text"
+                inputMode="numeric"
+                value={salaryText}
+                onChange={(event) => {
+                  setSalaryText(cleanNumberInput(event.target.value));
+                  triggerSalaryMotion();
+                }}
+                onBlur={() => {
+                  if (!salaryText) {
+                    setSalaryText("50");
+                  }
+                }}
+                placeholder="500"
               />
-            </label>
-          </div>
+
+              <button
+                type="button"
+                className="salary-stepper"
+                style={{
+                  touchAction: "none",
+                  userSelect: "none",
+                  WebkitUserSelect: "none",
+                }}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  startSalaryHold("increase");
+                }}
+                onPointerUp={(event) => {
+                  event.preventDefault();
+                  stopSalaryHold();
+                }}
+                onPointerLeave={stopSalaryHold}
+                onPointerCancel={stopSalaryHold}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                +
+              </button>
+
+              <PremiumDropdown
+                dropdownKey="salaryType"
+                value={salaryType}
+                options={salaryTypeOptions}
+                onChange={(value) => setSalaryType(value as SalaryType)}
+              />
+            </div>
+          </label>
 
           <label className="label">
             Requirements

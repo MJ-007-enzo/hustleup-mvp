@@ -1,10 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
 type SalaryPeriod = "hour" | "day" | "week" | "month";
+
+type DropdownKey = "city" | "startTime" | "endTime" | "salaryPeriod" | null;
+
+type DropdownOption = {
+  label: string;
+  value: string;
+};
 
 type UpgradedProfile = Profile & {
   location?: string | null;
@@ -13,13 +26,6 @@ type UpgradedProfile = Profile & {
   experience?: string | null;
   portfolio_url?: string | null;
   is_verified?: boolean | null;
-};
-
-type DropdownKey = "city" | "startTime" | "endTime" | "salaryPeriod" | null;
-
-type DropdownOption = {
-  label: string;
-  value: string;
 };
 
 const profileFields = [
@@ -55,6 +61,11 @@ const timeOptions = [
   "10:00 PM",
   "11:00 PM",
 ];
+
+const timeDropdownOptions: DropdownOption[] = timeOptions.map((time) => ({
+  label: time,
+  value: time,
+}));
 
 const salaryPeriodOptions: DropdownOption[] = [
   { label: "/hour", value: "hour" },
@@ -104,11 +115,6 @@ const tamilNaduCities = [
   "Tenkasi",
   "Ooty",
 ];
-
-const timeDropdownOptions: DropdownOption[] = timeOptions.map((time) => ({
-  label: time,
-  value: time,
-}));
 
 function cleanCityName(value: string) {
   const cleanedValue = value.trim();
@@ -168,8 +174,11 @@ export default function ProfilePage() {
   const [availabilityMotion, setAvailabilityMotion] = useState(false);
   const [salaryMotion, setSalaryMotion] = useState(false);
 
+  const holdDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const availability = `${startTime} to ${endTime}`;
-  const expectedSalary = `₹${salaryText || "0"}/${salaryPeriod}`;
+  const expectedSalary = `₹${salaryText || "50"}/${salaryPeriod}`;
   const salaryAmount = getNumberFromSalaryText(salaryText);
 
   const citySuggestions = useMemo(() => {
@@ -193,10 +202,21 @@ export default function ProfilePage() {
       setOpenDropdown(null);
     }
 
+    function stopHoldFromWindow() {
+      stopSalaryHold();
+    }
+
     window.addEventListener("click", closeDropdown);
+    window.addEventListener("pointerup", stopHoldFromWindow);
+    window.addEventListener("pointercancel", stopHoldFromWindow);
+    window.addEventListener("blur", stopHoldFromWindow);
 
     return () => {
       window.removeEventListener("click", closeDropdown);
+      window.removeEventListener("pointerup", stopHoldFromWindow);
+      window.removeEventListener("pointercancel", stopHoldFromWindow);
+      window.removeEventListener("blur", stopHoldFromWindow);
+      stopSalaryHold();
     };
   }, []);
 
@@ -242,7 +262,7 @@ export default function ProfilePage() {
   function triggerSalaryMotion() {
     setSalaryMotion(false);
     setTimeout(() => setSalaryMotion(true), 10);
-    setTimeout(() => setSalaryMotion(false), 350);
+    setTimeout(() => setSalaryMotion(false), 260);
   }
 
   function completionLabel() {
@@ -345,6 +365,8 @@ export default function ProfilePage() {
     if (!profile) return;
 
     const cleanedLocation = cleanCityName(location);
+    const finalSalaryText = salaryText || "50";
+    const finalExpectedSalary = `₹${finalSalaryText}/${salaryPeriod}`;
 
     setSaving(true);
     setMessage("");
@@ -356,7 +378,7 @@ export default function ProfilePage() {
         occupation,
         skills,
         availability,
-        expected_salary: expectedSalary,
+        expected_salary: finalExpectedSalary,
         location: cleanedLocation,
         phone,
         bio,
@@ -373,22 +395,47 @@ export default function ProfilePage() {
     }
 
     setLocation(cleanedLocation);
+    setSalaryText(finalSalaryText);
     setMessage("Profile updated successfully.");
     loadProfile();
   }
 
-  function changeSalaryAmount(type: "increase" | "decrease") {
+  function stepSalary(type: "increase" | "decrease") {
     triggerSalaryMotion();
 
-    const currentAmount = salaryAmount || 0;
+    setSalaryText((previousValue) => {
+      const currentAmount = getNumberFromSalaryText(previousValue) || 0;
 
-    if (type === "decrease") {
-      const nextAmount = Math.max(50, currentAmount - 50);
-      setSalaryText(String(nextAmount));
-      return;
+      if (type === "decrease") {
+        return String(Math.max(50, currentAmount - 50));
+      }
+
+      return String(currentAmount + 50);
+    });
+  }
+
+  function startSalaryHold(type: "increase" | "decrease") {
+    stopSalaryHold();
+
+    stepSalary(type);
+
+    holdDelayRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => {
+        stepSalary(type);
+      }, 70);
+    }, 280);
+  }
+
+  function stopSalaryHold() {
+    if (holdDelayRef.current) {
+      clearTimeout(holdDelayRef.current);
+      holdDelayRef.current = null;
     }
 
-    setSalaryText(String(currentAmount + 50));
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
   }
 
   function selectCity(city: string) {
@@ -946,7 +993,22 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   className="salary-stepper"
-                  onClick={() => changeSalaryAmount("decrease")}
+                  style={{
+                    touchAction: "none",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                  }}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    startSalaryHold("decrease");
+                  }}
+                  onPointerUp={(event) => {
+                    event.preventDefault();
+                    stopSalaryHold();
+                  }}
+                  onPointerLeave={stopSalaryHold}
+                  onPointerCancel={stopSalaryHold}
+                  onContextMenu={(event) => event.preventDefault()}
                 >
                   −
                 </button>
@@ -971,7 +1033,22 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   className="salary-stepper"
-                  onClick={() => changeSalaryAmount("increase")}
+                  style={{
+                    touchAction: "none",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                  }}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    startSalaryHold("increase");
+                  }}
+                  onPointerUp={(event) => {
+                    event.preventDefault();
+                    stopSalaryHold();
+                  }}
+                  onPointerLeave={stopSalaryHold}
+                  onPointerCancel={stopSalaryHold}
+                  onContextMenu={(event) => event.preventDefault()}
                 >
                   +
                 </button>
