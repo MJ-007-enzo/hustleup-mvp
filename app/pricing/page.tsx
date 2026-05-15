@@ -1,6 +1,99 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import type { Profile, Tier } from "@/lib/types";
 
 export default function PricingPage() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [busyTier, setBusyTier] = useState<Tier | null>(null);
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  async function loadProfile() {
+    setLoading(true);
+
+    const { data: authData } = await supabase.auth.getUser();
+
+    if (!authData.user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authData.user.id)
+      .single();
+
+    if (!error) {
+      setProfile(data as Profile);
+    }
+
+    setLoading(false);
+  }
+
+  async function choosePlan(tier: Tier) {
+    setMessage("");
+    setBusyTier(tier);
+
+    const { data: authData } = await supabase.auth.getUser();
+
+    if (!authData.user) {
+      window.location.href = "/auth";
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ tier })
+      .eq("id", authData.user.id);
+
+    setBusyTier(null);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setMessage(`Your plan has been updated to ${tier}.`);
+    loadProfile();
+  }
+
+  function planButton(tier: Tier, label: string) {
+    if (loading) {
+      return <button className="btn">Checking...</button>;
+    }
+
+    if (!profile) {
+      return (
+        <Link className="btn btn-primary" href="/auth">
+          Login to choose
+        </Link>
+      );
+    }
+
+    if (profile.tier === tier) {
+      return <button className="btn" disabled>Current plan</button>;
+    }
+
+    return (
+      <button
+        className="btn btn-primary"
+        onClick={() => choosePlan(tier)}
+        disabled={busyTier === tier}
+      >
+        {busyTier === tier ? "Updating..." : label}
+      </button>
+    );
+  }
+
   return (
     <main className="container">
       <span className="badge">Pricing</span>
@@ -11,6 +104,19 @@ export default function PricingPage() {
         and stronger profile positioning.
       </p>
 
+      {message && (
+        <div className={`notice ${message.includes("updated") ? "success" : "error"}`}>
+          {message}
+        </div>
+      )}
+
+      {profile && (
+        <div className="notice">
+          You are logged in as <strong>{profile.full_name}</strong>. Current plan:{" "}
+          <strong>{profile.tier}</strong>.
+        </div>
+      )}
+
       <section className="grid grid-3">
         <div className="card">
           <span className="tag">Beginner</span>
@@ -20,9 +126,7 @@ export default function PricingPage() {
           <p>✓ Browse jobs</p>
           <p>✓ Limited applications</p>
           <p>✓ Basic visibility</p>
-          <Link className="btn" href="/auth">
-            Start free
-          </Link>
+          {planButton("beginner", "Choose Beginner")}
         </div>
 
         <div className="card">
@@ -33,9 +137,7 @@ export default function PricingPage() {
           <p>✓ Better profile visibility</p>
           <p>✓ Application tracking</p>
           <p>✓ Basic badge</p>
-          <Link className="btn btn-primary" href="/auth">
-            Choose Basic
-          </Link>
+          {planButton("basic", "Choose Basic")}
         </div>
 
         <div className="card">
@@ -46,9 +148,7 @@ export default function PricingPage() {
           <p>✓ Priority job access</p>
           <p>✓ Stronger profile ranking</p>
           <p>✓ Future certification access</p>
-          <Link className="btn btn-primary" href="/auth">
-            Choose Premium
-          </Link>
+          {planButton("premium", "Choose Premium")}
         </div>
       </section>
 
