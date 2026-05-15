@@ -15,6 +15,13 @@ type UpgradedProfile = Profile & {
   is_verified?: boolean | null;
 };
 
+type DropdownKey = "city" | "startTime" | "endTime" | "salaryPeriod" | null;
+
+type DropdownOption = {
+  label: string;
+  value: string;
+};
+
 const profileFields = [
   "full_name",
   "email",
@@ -47,6 +54,13 @@ const timeOptions = [
   "9:00 PM",
   "10:00 PM",
   "11:00 PM",
+];
+
+const salaryPeriodOptions: DropdownOption[] = [
+  { label: "/hour", value: "hour" },
+  { label: "/day", value: "day" },
+  { label: "/week", value: "week" },
+  { label: "/month", value: "month" },
 ];
 
 const tamilNaduCities = [
@@ -91,6 +105,11 @@ const tamilNaduCities = [
   "Ooty",
 ];
 
+const timeDropdownOptions: DropdownOption[] = timeOptions.map((time) => ({
+  label: time,
+  value: time,
+}));
+
 function cleanCityName(value: string) {
   const cleanedValue = value.trim();
 
@@ -99,6 +118,26 @@ function cleanCityName(value: string) {
   );
 
   return match || cleanedValue;
+}
+
+function cleanSalaryInput(value: string) {
+  const numbersOnly = value.replace(/\D/g, "");
+
+  if (!numbersOnly) {
+    return "";
+  }
+
+  return numbersOnly.replace(/^0+(?=\d)/, "");
+}
+
+function getNumberFromSalaryText(value: string) {
+  const parsed = Number(value);
+
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+
+  return parsed;
 }
 
 export default function ProfilePage() {
@@ -111,7 +150,7 @@ export default function ProfilePage() {
   const [startTime, setStartTime] = useState("5:00 PM");
   const [endTime, setEndTime] = useState("10:00 PM");
 
-  const [salaryAmount, setSalaryAmount] = useState(500);
+  const [salaryText, setSalaryText] = useState("500");
   const [salaryPeriod, setSalaryPeriod] = useState<SalaryPeriod>("day");
 
   const [location, setLocation] = useState("");
@@ -120,7 +159,7 @@ export default function ProfilePage() {
   const [experience, setExperience] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
 
-  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -130,7 +169,8 @@ export default function ProfilePage() {
   const [salaryMotion, setSalaryMotion] = useState(false);
 
   const availability = `${startTime} to ${endTime}`;
-  const expectedSalary = `₹${salaryAmount}/${salaryPeriod}`;
+  const expectedSalary = `₹${salaryText || "0"}/${salaryPeriod}`;
+  const salaryAmount = getNumberFromSalaryText(salaryText);
 
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -146,6 +186,18 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadProfile();
+  }, []);
+
+  useEffect(() => {
+    function closeDropdown() {
+      setOpenDropdown(null);
+    }
+
+    window.addEventListener("click", closeDropdown);
+
+    return () => {
+      window.removeEventListener("click", closeDropdown);
+    };
   }, []);
 
   const completion = useMemo(() => {
@@ -232,7 +284,7 @@ export default function ProfilePage() {
     const amountMatch = value.match(/\d+/);
 
     if (amountMatch) {
-      setSalaryAmount(Number(amountMatch[0]));
+      setSalaryText(cleanSalaryInput(amountMatch[0]) || "500");
     }
 
     const lowerValue = value.toLowerCase();
@@ -328,18 +380,168 @@ export default function ProfilePage() {
   function changeSalaryAmount(type: "increase" | "decrease") {
     triggerSalaryMotion();
 
-    setSalaryAmount((prev) => {
-      if (type === "decrease") {
-        return Math.max(50, prev - 50);
-      }
+    const currentAmount = salaryAmount || 0;
 
-      return prev + 50;
-    });
+    if (type === "decrease") {
+      const nextAmount = Math.max(50, currentAmount - 50);
+      setSalaryText(String(nextAmount));
+      return;
+    }
+
+    setSalaryText(String(currentAmount + 50));
   }
 
   function selectCity(city: string) {
     setLocation(city);
-    setCityDropdownOpen(false);
+    setOpenDropdown(null);
+  }
+
+  function selectedDropdownLabel(options: DropdownOption[], value: string) {
+    return options.find((option) => option.value === value)?.label || value;
+  }
+
+  function PremiumDropdown({
+    dropdownKey,
+    value,
+    options,
+    onChange,
+  }: {
+    dropdownKey: Exclude<DropdownKey, "city" | null>;
+    value: string;
+    options: DropdownOption[];
+    onChange: (value: string) => void;
+  }) {
+    const isOpen = openDropdown === dropdownKey;
+
+    return (
+      <div
+        style={{
+          position: "relative",
+          zIndex: isOpen ? 700 : 1,
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
+          style={{
+            width: "100%",
+            minHeight: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            border: isOpen
+              ? "1px solid rgba(255, 90, 31, 0.55)"
+              : "1px solid var(--line-warm)",
+            borderRadius: 16,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+            color: "var(--premium)",
+            padding: "0 14px",
+            fontSize: 15,
+            fontWeight: 900,
+            fontFamily: "inherit",
+            cursor: "pointer",
+            boxShadow: isOpen
+              ? "0 0 0 4px rgba(255, 90, 31, 0.1), 0 16px 32px rgba(17, 24, 39, 0.08)"
+              : "0 10px 22px rgba(17, 24, 39, 0.04)",
+            transition:
+              "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
+          }}
+        >
+          <span>{selectedDropdownLabel(options, value)}</span>
+
+          <span
+            style={{
+              width: 27,
+              height: 27,
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              background: isOpen ? "var(--brand-soft)" : "#ffffff",
+              color: isOpen ? "var(--brand-dark)" : "var(--muted)",
+              border: "1px solid var(--line-warm)",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition:
+                "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
+              flexShrink: 0,
+            }}
+          >
+            ↓
+          </span>
+        </button>
+
+        {isOpen && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "calc(100% + 8px)",
+              maxHeight: 230,
+              overflowY: "auto",
+              border: "1px solid var(--line-warm)",
+              borderRadius: 18,
+              background:
+                "linear-gradient(180deg, #ffffff 0%, #fffaf6 100%)",
+              boxShadow:
+                "0 28px 70px rgba(17, 24, 39, 0.18), 0 10px 24px rgba(255, 90, 31, 0.08)",
+              padding: 8,
+              animation: "menuDrop 0.16s ease both",
+            }}
+          >
+            {options.map((option) => {
+              const selected = option.value === value;
+
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpenDropdown(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 40,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    border: 0,
+                    borderRadius: 13,
+                    background: selected ? "var(--brand-soft)" : "transparent",
+                    color: selected ? "var(--brand-dark)" : "var(--premium)",
+                    padding: "10px 12px",
+                    fontSize: 14,
+                    fontWeight: selected ? 950 : 800,
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition:
+                      "background 0.14s ease, color 0.14s ease, transform 0.14s ease",
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "rgba(255, 90, 31, 0.07)";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "transparent";
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {selected && <span>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (loading) {
@@ -390,33 +592,118 @@ export default function ProfilePage() {
       )}
 
       <section className="grid grid-2 profile-layout">
-        <aside className="profile-preview-card">
-          <div className="profile-avatar-large">
-            {(fullName || profile?.email || "U").slice(0, 1).toUpperCase()}
-          </div>
-
-          <div>
-            <div className="profile-title-row">
-              <h2>{fullName || "Unnamed user"}</h2>
-              {profile?.is_verified && (
-                <span className="verified-badge">Verified</span>
-              )}
+        <aside
+          className="profile-preview-card"
+          style={{
+            overflow: "hidden",
+            border: "1px solid rgba(255, 90, 31, 0.18)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(255,248,241,0.94))",
+            boxShadow:
+              "0 30px 80px rgba(17,24,39,0.12), 0 12px 34px rgba(255,90,31,0.08)",
+          }}
+        >
+          <div
+            style={{
+              margin: "-24px -24px 4px",
+              padding: "24px",
+              background:
+                "radial-gradient(circle at 14% 18%, rgba(255,90,31,0.22), transparent 30%), radial-gradient(circle at 88% 12%, rgba(245,158,11,0.18), transparent 28%), linear-gradient(135deg, rgba(17,24,39,0.98), rgba(31,41,55,0.94))",
+              color: "white",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div className="profile-avatar-large">
+              {(fullName || profile?.email || "U").slice(0, 1).toUpperCase()}
             </div>
 
-            <p>{profile?.email}</p>
+            <div style={{ marginTop: 14 }}>
+              <div className="profile-title-row">
+                <h2 style={{ color: "white" }}>{fullName || "Unnamed user"}</h2>
+
+                {profile?.is_verified && (
+                  <span className="verified-badge">Verified</span>
+                )}
+              </div>
+
+              <p style={{ color: "rgba(255,255,255,0.74)" }}>
+                {profile?.email}
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                marginTop: 14,
+              }}
+            >
+              <span className="premium-badge">{profile?.tier}</span>
+
+              <span
+                style={{
+                  display: "inline-flex",
+                  width: "fit-content",
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "white",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  fontSize: 12,
+                  fontWeight: 950,
+                  textTransform: "uppercase",
+                }}
+              >
+                {profile?.role}
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: 20,
+              background:
+                "linear-gradient(135deg, rgba(255,90,31,0.1), rgba(245,158,11,0.08))",
+              border: "1px solid rgba(255,90,31,0.16)",
+            }}
+          >
+            <small
+              style={{
+                display: "block",
+                color: "var(--muted)",
+                fontWeight: 950,
+                textTransform: "uppercase",
+                marginBottom: 8,
+              }}
+            >
+              Profile strength
+            </small>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <strong
+                style={{
+                  color: "var(--premium)",
+                  fontSize: 24,
+                }}
+              >
+                {completion}%
+              </strong>
+
+              <div className="profile-score-bar" style={{ flex: 1 }}>
+                <div style={{ width: `${completion}%` }} />
+              </div>
+            </div>
           </div>
 
           <div className="profile-mini-grid">
-            <div>
-              <small>Role</small>
-              <strong>{profile?.role}</strong>
-            </div>
-
-            <div>
-              <small>Tier</small>
-              <strong>{profile?.tier}</strong>
-            </div>
-
             <div>
               <small>Occupation</small>
               <strong>{occupation || "Not added"}</strong>
@@ -483,29 +770,30 @@ export default function ProfilePage() {
               style={{
                 position: "relative",
                 overflow: "visible",
-                zIndex: cityDropdownOpen ? 500 : 1,
+                zIndex: openDropdown === "city" ? 700 : 1,
               }}
+              onClick={(event) => event.stopPropagation()}
             >
               Location
               <input
                 className="input"
                 value={location}
-                onFocus={() => setCityDropdownOpen(true)}
-                onClick={() => setCityDropdownOpen(true)}
+                onFocus={() => setOpenDropdown("city")}
+                onClick={() => setOpenDropdown("city")}
                 onChange={(event) => {
                   setLocation(event.target.value);
-                  setCityDropdownOpen(true);
+                  setOpenDropdown("city");
                 }}
                 onBlur={() => {
                   setTimeout(() => {
                     setLocation((prev) => cleanCityName(prev));
-                    setCityDropdownOpen(false);
+                    setOpenDropdown(null);
                   }, 180);
                 }}
                 placeholder="Search or select your city"
               />
 
-              {cityDropdownOpen && (
+              {openDropdown === "city" && (
                 <div
                   style={{
                     position: "absolute",
@@ -617,38 +905,32 @@ export default function ProfilePage() {
                 className={`availability-picker ${
                   availabilityMotion ? "profile-control-pop" : ""
                 }`}
+                style={{
+                  gridTemplateColumns: "1fr auto 1fr",
+                  overflow: "visible",
+                }}
               >
-                <select
-                  className="select"
+                <PremiumDropdown
+                  dropdownKey="startTime"
                   value={startTime}
-                  onChange={(event) => {
-                    setStartTime(event.target.value);
+                  options={timeDropdownOptions}
+                  onChange={(value) => {
+                    setStartTime(value);
                     triggerAvailabilityMotion();
                   }}
-                >
-                  {timeOptions.map((time) => (
-                    <option value={time} key={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
+                />
 
                 <span>to</span>
 
-                <select
-                  className="select"
+                <PremiumDropdown
+                  dropdownKey="endTime"
                   value={endTime}
-                  onChange={(event) => {
-                    setEndTime(event.target.value);
+                  options={timeDropdownOptions}
+                  onChange={(value) => {
+                    setEndTime(value);
                     triggerAvailabilityMotion();
                   }}
-                >
-                  {timeOptions.map((time) => (
-                    <option value={time} key={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             </label>
 
@@ -671,14 +953,19 @@ export default function ProfilePage() {
 
                 <input
                   className="salary-input"
-                  type="number"
-                  min={50}
-                  step={50}
-                  value={salaryAmount}
+                  type="text"
+                  inputMode="numeric"
+                  value={salaryText}
                   onChange={(event) => {
-                    setSalaryAmount(Number(event.target.value));
+                    setSalaryText(cleanSalaryInput(event.target.value));
                     triggerSalaryMotion();
                   }}
+                  onBlur={() => {
+                    if (!salaryText) {
+                      setSalaryText("50");
+                    }
+                  }}
+                  placeholder="500"
                 />
 
                 <button
@@ -689,19 +976,15 @@ export default function ProfilePage() {
                   +
                 </button>
 
-                <select
-                  className="salary-period-select"
+                <PremiumDropdown
+                  dropdownKey="salaryPeriod"
                   value={salaryPeriod}
-                  onChange={(event) => {
-                    setSalaryPeriod(event.target.value as SalaryPeriod);
+                  options={salaryPeriodOptions}
+                  onChange={(value) => {
+                    setSalaryPeriod(value as SalaryPeriod);
                     triggerSalaryMotion();
                   }}
-                >
-                  <option value="hour">/hour</option>
-                  <option value="day">/day</option>
-                  <option value="week">/week</option>
-                  <option value="month">/month</option>
-                </select>
+                />
               </div>
             </label>
           </div>
