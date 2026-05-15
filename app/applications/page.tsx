@@ -15,9 +15,18 @@ type ApplicationRow = {
   created_at: string;
 };
 
+type UpgradedProfile = Profile & {
+  location?: string | null;
+  phone?: string | null;
+  bio?: string | null;
+  experience?: string | null;
+  portfolio_url?: string | null;
+  is_verified?: boolean | null;
+};
+
 type ApplicationView = ApplicationRow & {
   job?: Job;
-  seeker?: Profile;
+  seeker?: UpgradedProfile;
 };
 
 type StatusFilter = "all" | ApplicationStatus;
@@ -171,7 +180,7 @@ export default function ApplicationsPage() {
     const appRows = (appData ?? []) as ApplicationRow[];
     const seekerIds = appRows.map((app) => app.seeker_id);
 
-    let seekers: Profile[] = [];
+    let seekers: UpgradedProfile[] = [];
 
     if (seekerIds.length > 0) {
       const { data: seekerData, error: seekerError } = await supabase
@@ -184,7 +193,7 @@ export default function ApplicationsPage() {
         return;
       }
 
-      seekers = (seekerData ?? []) as Profile[];
+     seekers = (seekerData ?? []) as UpgradedProfile[];
     }
 
     const finalData = appRows.map((app) => ({
@@ -231,7 +240,33 @@ export default function ApplicationsPage() {
   function statusClass(status: ApplicationStatus) {
     return `application-status application-status-${status}`;
   }
+function profileCompletion(seeker?: UpgradedProfile) {
+  if (!seeker) return 0;
 
+  const fields = [
+    seeker.full_name,
+    seeker.email,
+    seeker.occupation,
+    seeker.skills,
+    seeker.availability,
+    seeker.expected_salary,
+    seeker.location,
+    seeker.phone,
+    seeker.bio,
+    seeker.experience,
+  ];
+
+  const filled = fields.filter((field) => field && field.trim().length > 0).length;
+
+  return Math.round((filled / fields.length) * 100);
+}
+
+function profileQualityLabel(score: number) {
+  if (score >= 90) return "Excellent";
+  if (score >= 70) return "Strong";
+  if (score >= 45) return "Average";
+  return "Incomplete";
+}
   function formatDate(date: string) {
     return new Date(date).toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -450,33 +485,96 @@ export default function ApplicationsPage() {
                 </div>
               ) : (
                 <div className="owner-application-view">
-                  <div className="applicant-profile-card">
-                    <div className="applicant-avatar">
-                      {(app.seeker?.full_name || "U").slice(0, 1).toUpperCase()}
-                    </div>
+                  <div className="applicant-profile-card upgraded-applicant-card">
+  <div className="applicant-avatar">
+    {(app.seeker?.full_name || "U").slice(0, 1).toUpperCase()}
+  </div>
 
-                    <div>
-                      <h3>{app.seeker?.full_name || "Unknown applicant"}</h3>
-                      <p>{app.seeker?.email || "Email not available"}</p>
-                    </div>
-                  </div>
+  <div className="applicant-main-info">
+    <div className="applicant-name-row">
+      <h3>{app.seeker?.full_name || "Unknown applicant"}</h3>
 
-                  <div className="job-modal-grid">
-                    <div>
-                      <small>Skills</small>
-                      <strong>{app.seeker?.skills || "Not added"}</strong>
-                    </div>
+      {app.seeker?.is_verified && (
+        <span className="verified-badge">Verified</span>
+      )}
+    </div>
 
-                    <div>
-                      <small>Availability</small>
-                      <strong>{app.seeker?.availability || "Not added"}</strong>
-                    </div>
+    <p>{app.seeker?.email || "Email not available"}</p>
 
-                    <div>
-                      <small>Expected salary</small>
-                      <strong>{app.seeker?.expected_salary || "Not added"}</strong>
-                    </div>
-                  </div>
+    <div className="applicant-profile-score">
+      <span>
+        Profile: {profileCompletion(app.seeker)}% ·{" "}
+        {profileQualityLabel(profileCompletion(app.seeker))}
+      </span>
+
+      <div className="profile-score-bar">
+        <div
+          style={{
+            width: `${profileCompletion(app.seeker)}%`,
+          }}
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="job-modal-grid">
+  <div>
+    <small>Skills</small>
+    <strong>{app.seeker?.skills || "Not added"}</strong>
+  </div>
+
+  <div>
+    <small>Availability</small>
+    <strong>{app.seeker?.availability || "Not added"}</strong>
+  </div>
+
+  <div>
+    <small>Expected salary</small>
+    <strong>{app.seeker?.expected_salary || "Not added"}</strong>
+  </div>
+
+  <div>
+    <small>Location</small>
+    <strong>{app.seeker?.location || "Not added"}</strong>
+  </div>
+
+  <div>
+    <small>Phone</small>
+    <strong>{app.seeker?.phone || "Not added"}</strong>
+  </div>
+
+  <div>
+    <small>Occupation</small>
+    <strong>{app.seeker?.occupation || "Not added"}</strong>
+  </div>
+</div>
+
+<div className="job-modal-section">
+  <h3>Applicant bio</h3>
+  <p>{app.seeker?.bio || "No bio added."}</p>
+</div>
+
+<div className="job-modal-section">
+  <h3>Experience</h3>
+  <p>{app.seeker?.experience || "No experience added."}</p>
+</div>
+
+<div className="job-modal-section">
+  <h3>Portfolio / proof</h3>
+  {app.seeker?.portfolio_url ? (
+    <a
+      className="profile-link"
+      href={app.seeker.portfolio_url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      Open portfolio
+    </a>
+  ) : (
+    <p>No portfolio link added.</p>
+  )}
+</div>
 
                   <div className="job-modal-section">
                     <h3>Applicant message</h3>

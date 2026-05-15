@@ -2440,3 +2440,266 @@ body:has(.job-modal-backdrop) {
     font-size: 30px;
   }
 }
+/* ================= PROFILE UPGRADE ================= */
+
+.profile-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 24px;
+  align-items: end;
+  padding: 54px 0 26px;
+}
+
+.profile-score-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 28px;
+  border: 1px solid var(--line-warm);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 250, 246, 0.92));
+  box-shadow: var(--shadow-soft);
+}
+
+.profile-score-ring {
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, white 55%, transparent 57%),
+    conic-gradient(var(--brand) 0deg, var(--warning) 270deg, #eadfd4 270deg);
+  box-shadow: 0 16px 34px rgba(255, 90, 31, 0.12);
+}
+
+.profile-score-ring span {
+  font-size: 22px;
+  font-weight: 950;
+  color: var(--premium);
+}
+
+.profile-layout {
+  align-items: start;
+}
+
+.profile-preview-card {
+  position: sticky;
+  top: 92px;
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid var(--line-warm);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 250, 246, 0.92));
+  box-shadow: var(--shadow-soft);
+}
+
+.profile-avatar-large {
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--premium-gradient);
+  color: white;
+  font-size: 30px;
+  font-weight: 950;
+}
+
+.profile-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-title-row h2 {
+  margin: 0;
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid rgba(22, 163, 74, 0.22);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.verified-badge::before {
+  content: "✓";
+}
+
+.profile-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-mini-grid div {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line-warm);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.profile-mini-grid small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.profile-preview-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--line-warm);
+}
+
+.profile-preview-section h3 {
+  margin-bottom: 4px;
+}
+
+@media (max-width: 820px) {
+  .profile-hero,
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-preview-card {
+    position: static;
+  }
+
+  .profile-score-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+/* ================= UPGRADED APPLICANT PROFILE ================= */
+
+.upgraded-applicant-card {
+  align-items: flex-start;
+}
+
+.applicant-main-info {
+  width: 100%;
+}
+
+.applicant-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.applicant-name-row h3 {
+  margin: 0;
+}
+
+.applicant-profile-score {
+  margin-top: 10px;
+}
+
+.applicant-profile-score span {
+  display: block;
+  color: var(--premium);
+  font-size: 13px;
+  font-weight: 850;
+  margin-bottom: 8px;
+}
+
+.profile-score-bar {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #eadfd4;
+}
+
+.profile-score-bar div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-gradient);
+}
+
+.profile-link {
+  display: inline-flex;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  border: 1px solid rgba(255, 90, 31, 0.2);
+  font-weight: 850;
+}
+
+.profile-link:hover {
+  background: var(--brand-gradient);
+  color: white;
+}
+/* ================= ADMIN VERIFICATION UPGRADE ================= */
+
+.admin-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 24px;
+  align-items: end;
+  padding: 54px 0 26px;
+}
+
+.unverified-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.admin-profile-score {
+  min-width: 120px;
+}
+
+.admin-profile-score strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.admin-action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-action-row .btn {
+  width: auto;
+  min-height: 38px;
+  padding: 8px 11px;
+  font-size: 13px;
+}
+
+@media (max-width: 820px) {
+  .admin-hero {
+    grid-template-columns: 1fr;
+    padding: 36px 0 18px;
+  }
+
+  .admin-action-row {
+    min-width: 260px;
+  }
+}
