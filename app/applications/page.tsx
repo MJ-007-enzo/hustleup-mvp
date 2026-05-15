@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
@@ -30,6 +31,89 @@ type ApplicationView = ApplicationRow & {
 };
 
 type StatusFilter = "all" | ApplicationStatus;
+
+const cardSoftStyle: CSSProperties = {
+  border: "1px solid rgba(255,90,31,0.14)",
+  background:
+    "radial-gradient(circle at 8% 8%, rgba(255,90,31,0.08), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+  boxShadow: "0 24px 60px rgba(17,24,39,0.08)",
+};
+
+const actionButtonStyle: CSSProperties = {
+  minHeight: 48,
+  borderRadius: 16,
+  padding: "0 18px",
+  fontWeight: 850,
+  fontSize: 14,
+  boxShadow: "0 12px 28px rgba(17,24,39,0.08)",
+};
+
+const secondaryButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+  border: "1px solid rgba(255,90,31,0.16)",
+  color: "var(--premium)",
+};
+
+const disabledButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+  border: "1px solid rgba(255,90,31,0.16)",
+  color: "var(--premium)",
+  opacity: 1,
+  cursor: "not-allowed",
+};
+
+const dangerButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  background: "linear-gradient(180deg, #fff7f7, #fff1f1)",
+  border: "1px solid rgba(239,68,68,0.22)",
+  color: "#b91c1c",
+};
+
+const primaryButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  boxShadow:
+    "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
+};
+
+function getStatusVisual(status: ApplicationStatus) {
+  if (status === "applied") {
+    return {
+      icon: "↗",
+      color: "#92400e",
+      background: "rgba(245,158,11,0.12)",
+      border: "1px solid rgba(245,158,11,0.22)",
+    };
+  }
+
+  if (status === "shortlisted") {
+    return {
+      icon: "★",
+      color: "#1d4ed8",
+      background: "rgba(59,130,246,0.1)",
+      border: "1px solid rgba(59,130,246,0.2)",
+    };
+  }
+
+  if (status === "hired") {
+    return {
+      icon: "✓",
+      color: "#047857",
+      background: "rgba(16,185,129,0.11)",
+      border: "1px solid rgba(16,185,129,0.22)",
+    };
+  }
+
+  return {
+    icon: "×",
+    color: "#b91c1c",
+    background: "rgba(239,68,68,0.1)",
+    border: "1px solid rgba(239,68,68,0.2)",
+  };
+}
 
 export default function ApplicationsPage() {
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
@@ -234,10 +318,6 @@ export default function ApplicationsPage() {
     return "Rejected";
   }
 
-  function statusClass(status: ApplicationStatus) {
-    return `application-status application-status-${status}`;
-  }
-
   function formatDate(date: string) {
     return new Date(date).toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -276,12 +356,194 @@ export default function ApplicationsPage() {
     return "Incomplete";
   }
 
+  function StatusPill({ status }: { status: ApplicationStatus }) {
+    const visual = getStatusVisual(status);
+
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          width: "fit-content",
+          padding: "8px 12px",
+          borderRadius: 999,
+          background: visual.background,
+          border: visual.border,
+          color: visual.color,
+          fontSize: 12,
+          fontWeight: 900,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+        }}
+      >
+        <span>{visual.icon}</span>
+        {statusLabel(status)}
+      </span>
+    );
+  }
+
+  function StatButton({
+    label,
+    count,
+    filter,
+  }: {
+    label: string;
+    count: number;
+    filter: StatusFilter;
+  }) {
+    const active = statusFilter === filter;
+
+    return (
+      <button
+        onClick={() => setStatusFilter(filter)}
+        style={{
+          minHeight: 92,
+          border: active
+            ? "1px solid rgba(255,90,31,0.48)"
+            : "1px solid rgba(255,90,31,0.14)",
+          borderRadius: 24,
+          background: active
+            ? "radial-gradient(circle at 12% 10%, rgba(255,90,31,0.18), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.96))"
+            : "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.9))",
+          boxShadow: active
+            ? "0 20px 50px rgba(255,90,31,0.12), 0 12px 28px rgba(17,24,39,0.08)"
+            : "0 14px 34px rgba(17,24,39,0.055)",
+          padding: 18,
+          cursor: "pointer",
+          textAlign: "left",
+          transition:
+            "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+        }}
+      >
+        <span
+          style={{
+            display: "block",
+            color: active ? "var(--brand-dark)" : "var(--muted)",
+            fontWeight: 850,
+            fontSize: 13,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            marginBottom: 8,
+          }}
+        >
+          {label}
+        </span>
+
+        <strong
+          style={{
+            display: "block",
+            color: active ? "var(--brand)" : "var(--premium)",
+            fontSize: 30,
+            lineHeight: 1,
+          }}
+        >
+          {count}
+        </strong>
+      </button>
+    );
+  }
+
+  function InfoTile({
+    label,
+    value,
+  }: {
+    label: string;
+    value: string | number | undefined | null;
+  }) {
+    return (
+      <div
+        style={{
+          padding: 15,
+          borderRadius: 18,
+          background: "rgba(255,255,255,0.78)",
+          border: "1px solid rgba(255,90,31,0.12)",
+          boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
+        }}
+      >
+        <small
+          style={{
+            display: "block",
+            color: "var(--muted)",
+            fontWeight: 850,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            marginBottom: 6,
+          }}
+        >
+          {label}
+        </small>
+
+        <strong
+          style={{
+            display: "block",
+            color: "var(--premium)",
+            fontWeight: 800,
+            lineHeight: 1.35,
+          }}
+        >
+          {value || "Not added"}
+        </strong>
+      </div>
+    );
+  }
+
+  function DetailBlock({
+    title,
+    children,
+  }: {
+    title: string;
+    children: React.ReactNode;
+  }) {
+    return (
+      <div
+        style={{
+          padding: 16,
+          borderRadius: 20,
+          background: "rgba(255,255,255,0.72)",
+          border: "1px solid rgba(255,90,31,0.1)",
+          boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
+        }}
+      >
+        <h3
+          style={{
+            marginTop: 0,
+            marginBottom: 8,
+            fontSize: 16,
+            color: "var(--premium)",
+          }}
+        >
+          {title}
+        </h3>
+
+        <div
+          style={{
+            color: "var(--muted)",
+            fontWeight: 650,
+            lineHeight: 1.55,
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   function seekerTimeline(status: ApplicationStatus) {
     const steps: ApplicationStatus[] = ["applied", "shortlisted", "hired"];
     const rejected = status === "rejected";
 
     return (
-      <div className="status-timeline">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: rejected
+            ? "repeat(4, minmax(0, 1fr))"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: 10,
+          marginTop: 12,
+        }}
+      >
         {steps.map((step) => {
           const active =
             !rejected &&
@@ -290,21 +552,91 @@ export default function ApplicationsPage() {
               (status === "hired" &&
                 (step === "applied" || step === "shortlisted")));
 
+          const visual = getStatusVisual(active ? step : "applied");
+
           return (
             <div
-              className={`timeline-step ${active ? "timeline-active" : ""}`}
               key={step}
+              style={{
+                padding: "14px 10px",
+                borderRadius: 18,
+                textAlign: "center",
+                background: active
+                  ? visual.background
+                  : "rgba(255,255,255,0.62)",
+                border: active
+                  ? visual.border
+                  : "1px solid rgba(17,24,39,0.08)",
+              }}
             >
-              <span>{active ? "✓" : ""}</span>
-              <p>{statusLabel(step)}</p>
+              <span
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  display: "grid",
+                  placeItems: "center",
+                  margin: "0 auto 8px",
+                  background: active ? "var(--brand-soft)" : "#ffffff",
+                  color: active ? "var(--brand-dark)" : "var(--muted)",
+                  border: "1px solid rgba(255,90,31,0.12)",
+                  fontWeight: 900,
+                }}
+              >
+                {active ? "✓" : ""}
+              </span>
+
+              <p
+                style={{
+                  margin: 0,
+                  color: active ? "var(--premium)" : "var(--muted)",
+                  fontWeight: 750,
+                  fontSize: 13,
+                }}
+              >
+                {statusLabel(step)}
+              </p>
             </div>
           );
         })}
 
         {rejected && (
-          <div className="timeline-step timeline-rejected">
-            <span>×</span>
-            <p>Rejected</p>
+          <div
+            style={{
+              padding: "14px 10px",
+              borderRadius: 18,
+              textAlign: "center",
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.2)",
+            }}
+          >
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                display: "grid",
+                placeItems: "center",
+                margin: "0 auto 8px",
+                background: "#fff1f1",
+                color: "#b91c1c",
+                border: "1px solid rgba(239,68,68,0.18)",
+                fontWeight: 900,
+              }}
+            >
+              ×
+            </span>
+
+            <p
+              style={{
+                margin: 0,
+                color: "#b91c1c",
+                fontWeight: 750,
+                fontSize: 13,
+              }}
+            >
+              Rejected
+            </p>
           </div>
         )}
       </div>
@@ -338,9 +670,27 @@ export default function ApplicationsPage() {
           </p>
         </div>
 
-        <div className="jobs-summary-card">
+        <div
+          className="jobs-summary-card"
+          style={{
+            ...cardSoftStyle,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: "0 0 auto 0",
+              height: 5,
+              background: "var(--brand-gradient)",
+            }}
+          />
+
           <span className="tag">Total applications</span>
+
           <div className="stat">{applications.length}</div>
+
           <p>
             {profile?.role === "job_seeker"
               ? "applications submitted"
@@ -359,60 +709,38 @@ export default function ApplicationsPage() {
         </div>
       )}
 
-      <section className="application-stats-grid">
-        <button
-          className={`application-stat-card ${
-            statusFilter === "all" ? "application-stat-active" : ""
-          }`}
-          onClick={() => setStatusFilter("all")}
-        >
-          <span>All</span>
-          <strong>{counts.all}</strong>
-        </button>
-
-        <button
-          className={`application-stat-card ${
-            statusFilter === "applied" ? "application-stat-active" : ""
-          }`}
-          onClick={() => setStatusFilter("applied")}
-        >
-          <span>Applied</span>
-          <strong>{counts.applied}</strong>
-        </button>
-
-        <button
-          className={`application-stat-card ${
-            statusFilter === "shortlisted" ? "application-stat-active" : ""
-          }`}
-          onClick={() => setStatusFilter("shortlisted")}
-        >
-          <span>Shortlisted</span>
-          <strong>{counts.shortlisted}</strong>
-        </button>
-
-        <button
-          className={`application-stat-card ${
-            statusFilter === "hired" ? "application-stat-active" : ""
-          }`}
-          onClick={() => setStatusFilter("hired")}
-        >
-          <span>Hired</span>
-          <strong>{counts.hired}</strong>
-        </button>
-
-        <button
-          className={`application-stat-card ${
-            statusFilter === "rejected" ? "application-stat-active" : ""
-          }`}
-          onClick={() => setStatusFilter("rejected")}
-        >
-          <span>Rejected</span>
-          <strong>{counts.rejected}</strong>
-        </button>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 14,
+          marginBottom: 24,
+        }}
+      >
+        <StatButton label="All" count={counts.all} filter="all" />
+        <StatButton label="Applied" count={counts.applied} filter="applied" />
+        <StatButton
+          label="Shortlisted"
+          count={counts.shortlisted}
+          filter="shortlisted"
+        />
+        <StatButton label="Hired" count={counts.hired} filter="hired" />
+        <StatButton
+          label="Rejected"
+          count={counts.rejected}
+          filter="rejected"
+        />
       </section>
 
       {filteredApplications.length === 0 ? (
-        <section className="card">
+        <section
+          className="card"
+          style={{
+            ...cardSoftStyle,
+            borderRadius: 28,
+            padding: 28,
+          }}
+        >
           <span className="tag">No applications</span>
           <h3>No matching applications found.</h3>
           <p>
@@ -422,64 +750,155 @@ export default function ApplicationsPage() {
           </p>
         </section>
       ) : (
-        <section className="applications-list">
+        <section
+          style={{
+            display: "grid",
+            gap: 22,
+          }}
+        >
           {filteredApplications.map((app) => {
             const completionScore = profileCompletion(app.seeker);
 
             return (
-              <article className="application-card" key={app.id}>
-                <div className="application-card-header">
+              <article
+                key={app.id}
+                style={{
+                  ...cardSoftStyle,
+                  position: "relative",
+                  overflow: "hidden",
+                  borderRadius: 30,
+                  padding: 26,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "0 0 auto 0",
+                    height: 5,
+                    background:
+                      app.status === "hired"
+                        ? "linear-gradient(90deg, #10b981, #34d399)"
+                        : app.status === "rejected"
+                          ? "linear-gradient(90deg, #ef4444, #fb7185)"
+                          : "var(--brand-gradient)",
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 18,
+                    flexWrap: "wrap",
+                    marginBottom: 22,
+                  }}
+                >
                   <div>
-                    <span className={statusClass(app.status)}>
-                      {statusLabel(app.status)}
-                    </span>
+                    <StatusPill status={app.status} />
 
-                    <h2>{app.job?.title || "Unknown job"}</h2>
+                    <h2
+                      style={{
+                        marginTop: 14,
+                        marginBottom: 8,
+                        color: "var(--premium)",
+                      }}
+                    >
+                      {app.job?.title || "Unknown job"}
+                    </h2>
 
-                    <p>
-                      <strong>
-                        {app.job?.company_name || "Unknown company"}
-                      </strong>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      <strong>{app.job?.company_name || "Unknown company"}</strong>
                       {" · "}
                       {app.job?.location || "Location not available"}
                     </p>
                   </div>
 
-                  <div className="application-date">
-                    <small>Applied on</small>
-                    <strong>{formatDate(app.created_at)}</strong>
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 18,
+                      background: "rgba(255,255,255,0.74)",
+                      border: "1px solid rgba(255,90,31,0.1)",
+                      minWidth: 140,
+                    }}
+                  >
+                    <small
+                      style={{
+                        display: "block",
+                        color: "var(--muted)",
+                        fontWeight: 850,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        marginBottom: 5,
+                      }}
+                    >
+                      Applied on
+                    </small>
+
+                    <strong
+                      style={{
+                        color: "var(--premium)",
+                      }}
+                    >
+                      {formatDate(app.created_at)}
+                    </strong>
                   </div>
                 </div>
 
                 {profile?.role === "job_seeker" ? (
-                  <div className="seeker-application-view">
-                    <div className="job-modal-grid">
-                      <div>
-                        <small>Salary</small>
-                        <strong>
-                          {app.job
+                  <div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(170px, 1fr))",
+                        gap: 12,
+                        marginBottom: 18,
+                      }}
+                    >
+                      <InfoTile
+                        label="Salary"
+                        value={
+                          app.job
                             ? `₹${app.job.salary_amount}/${app.job.salary_type}`
-                            : "Not available"}
-                        </strong>
-                      </div>
+                            : "Not available"
+                        }
+                      />
 
-                      <div>
-                        <small>Timing</small>
-                        <strong>{app.job?.duration || "Flexible"}</strong>
-                      </div>
+                      <InfoTile
+                        label="Timing"
+                        value={app.job?.duration || "Flexible"}
+                      />
 
-                      <div>
-                        <small>Job type</small>
-                        <strong>{app.job?.job_type || "Not available"}</strong>
-                      </div>
+                      <InfoTile
+                        label="Job type"
+                        value={app.job?.job_type || "Not available"}
+                      />
                     </div>
 
-                    <div className="job-modal-section">
-                      <h3>Your application progress</h3>
+                    <DetailBlock title="Your application progress">
                       {seekerTimeline(app.status)}
-                    </div>
+                    </DetailBlock>
 
-                    <p className="application-help-text">
+                    <p
+                      style={{
+                        marginTop: 16,
+                        marginBottom: 0,
+                        padding: "14px 16px",
+                        borderRadius: 18,
+                        background: "rgba(255,255,255,0.72)",
+                        border: "1px solid rgba(255,90,31,0.1)",
+                        color: "var(--muted)",
+                        fontWeight: 650,
+                        lineHeight: 1.55,
+                      }}
+                    >
                       {app.status === "applied" &&
                         "Your application has been sent. Wait for the job owner to review it."}
                       {app.status === "shortlisted" &&
@@ -491,17 +910,55 @@ export default function ApplicationsPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="owner-application-view">
-                    <div className="applicant-profile-card upgraded-applicant-card">
-                      <div className="applicant-avatar">
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        padding: 16,
+                        borderRadius: 22,
+                        background:
+                          "radial-gradient(circle at 8% 12%, rgba(255,90,31,0.1), transparent 32%), rgba(255,255,255,0.76)",
+                        border: "1px solid rgba(255,90,31,0.14)",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 54,
+                          height: 54,
+                          borderRadius: 20,
+                          display: "grid",
+                          placeItems: "center",
+                          background: "var(--premium-gradient)",
+                          color: "white",
+                          fontWeight: 950,
+                          fontSize: 22,
+                          boxShadow: "0 14px 30px rgba(17,24,39,0.16)",
+                          flexShrink: 0,
+                        }}
+                      >
                         {(app.seeker?.full_name || "U")
                           .slice(0, 1)
                           .toUpperCase()}
                       </div>
 
-                      <div className="applicant-main-info">
-                        <div className="applicant-name-row">
-                          <h3>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <h3
+                            style={{
+                              margin: 0,
+                              color: "var(--premium)",
+                            }}
+                          >
                             {app.seeker?.full_name || "Unknown applicant"}
                           </h3>
 
@@ -510,10 +967,26 @@ export default function ApplicationsPage() {
                           )}
                         </div>
 
-                        <p>{app.seeker?.email || "Email not available"}</p>
+                        <p
+                          style={{
+                            marginTop: 5,
+                            marginBottom: 10,
+                            color: "var(--muted)",
+                          }}
+                        >
+                          {app.seeker?.email || "Email not available"}
+                        </p>
 
-                        <div className="applicant-profile-score">
-                          <span>
+                        <div>
+                          <span
+                            style={{
+                              display: "block",
+                              color: "var(--muted)",
+                              fontWeight: 750,
+                              fontSize: 13,
+                              marginBottom: 8,
+                            }}
+                          >
                             Profile: {completionScore}% ·{" "}
                             {profileQualityLabel(completionScore)}
                           </span>
@@ -529,80 +1002,86 @@ export default function ApplicationsPage() {
                       </div>
                     </div>
 
-                    <div className="job-modal-grid">
-                      <div>
-                        <small>Skills</small>
-                        <strong>{app.seeker?.skills || "Not added"}</strong>
-                      </div>
-
-                      <div>
-                        <small>Availability</small>
-                        <strong>
-                          {app.seeker?.availability || "Not added"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <small>Expected salary</small>
-                        <strong>
-                          {app.seeker?.expected_salary || "Not added"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <small>Location</small>
-                        <strong>{app.seeker?.location || "Not added"}</strong>
-                      </div>
-
-                      <div>
-                        <small>Phone</small>
-                        <strong>{app.seeker?.phone || "Not added"}</strong>
-                      </div>
-
-                      <div>
-                        <small>Occupation</small>
-                        <strong>
-                          {app.seeker?.occupation || "Not added"}
-                        </strong>
-                      </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(190px, 1fr))",
+                        gap: 12,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <InfoTile label="Skills" value={app.seeker?.skills} />
+                      <InfoTile
+                        label="Availability"
+                        value={app.seeker?.availability}
+                      />
+                      <InfoTile
+                        label="Expected salary"
+                        value={app.seeker?.expected_salary}
+                      />
+                      <InfoTile label="Location" value={app.seeker?.location} />
+                      <InfoTile label="Phone" value={app.seeker?.phone} />
+                      <InfoTile
+                        label="Occupation"
+                        value={app.seeker?.occupation}
+                      />
                     </div>
 
-                    <div className="job-modal-section">
-                      <h3>Applicant bio</h3>
-                      <p>{app.seeker?.bio || "No bio added."}</p>
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 12,
+                        marginBottom: 18,
+                      }}
+                    >
+                      <DetailBlock title="Applicant bio">
+                        <p style={{ margin: 0 }}>
+                          {app.seeker?.bio || "No bio added."}
+                        </p>
+                      </DetailBlock>
+
+                      <DetailBlock title="Experience">
+                        <p style={{ margin: 0 }}>
+                          {app.seeker?.experience || "No experience added."}
+                        </p>
+                      </DetailBlock>
+
+                      <DetailBlock title="Portfolio / proof">
+                        {app.seeker?.portfolio_url ? (
+                          <a
+                            className="profile-link"
+                            href={app.seeker.portfolio_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open portfolio
+                          </a>
+                        ) : (
+                          <p style={{ margin: 0 }}>No portfolio link added.</p>
+                        )}
+                      </DetailBlock>
+
+                      <DetailBlock title="Applicant message">
+                        <p style={{ margin: 0 }}>
+                          {app.message || "No message added."}
+                        </p>
+                      </DetailBlock>
                     </div>
 
-                    <div className="job-modal-section">
-                      <h3>Experience</h3>
-                      <p>{app.seeker?.experience || "No experience added."}</p>
-                    </div>
-
-                    <div className="job-modal-section">
-                      <h3>Portfolio / proof</h3>
-                      {app.seeker?.portfolio_url ? (
-                        <a
-                          className="profile-link"
-                          href={app.seeker.portfolio_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Open portfolio
-                        </a>
-                      ) : (
-                        <p>No portfolio link added.</p>
-                      )}
-                    </div>
-
-                    <div className="job-modal-section">
-                      <h3>Applicant message</h3>
-                      <p>{app.message || "No message added."}</p>
-                    </div>
-
-                    <div className="application-actions">
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 12,
+                        paddingTop: 4,
+                      }}
+                    >
                       {app.status === "applied" && (
                         <>
                           <button
                             className="btn"
+                            style={secondaryButtonStyle}
                             onClick={() =>
                               updateStatus(app.id, "shortlisted")
                             }
@@ -614,17 +1093,17 @@ export default function ApplicationsPage() {
                           </button>
 
                           <button
-                            className="btn danger-btn"
+                            className="btn"
+                            style={dangerButtonStyle}
                             onClick={() => updateStatus(app.id, "rejected")}
                             disabled={updatingId === app.id}
                           >
-                            {updatingId === app.id
-                              ? "Updating..."
-                              : "Reject"}
+                            {updatingId === app.id ? "Updating..." : "Reject"}
                           </button>
 
                           <button
                             className="btn btn-primary"
+                            style={primaryButtonStyle}
                             onClick={() => updateStatus(app.id, "hired")}
                             disabled={updatingId === app.id}
                           >
@@ -636,17 +1115,17 @@ export default function ApplicationsPage() {
                       {app.status === "shortlisted" && (
                         <>
                           <button
-                            className="btn danger-btn"
+                            className="btn"
+                            style={dangerButtonStyle}
                             onClick={() => updateStatus(app.id, "rejected")}
                             disabled={updatingId === app.id}
                           >
-                            {updatingId === app.id
-                              ? "Updating..."
-                              : "Reject"}
+                            {updatingId === app.id ? "Updating..." : "Reject"}
                           </button>
 
                           <button
                             className="btn btn-primary"
+                            style={primaryButtonStyle}
                             onClick={() => updateStatus(app.id, "hired")}
                             disabled={updatingId === app.id}
                           >
@@ -656,13 +1135,21 @@ export default function ApplicationsPage() {
                       )}
 
                       {app.status === "hired" && (
-                        <button className="btn btn-primary" disabled>
+                        <button
+                          className="btn"
+                          style={disabledButtonStyle}
+                          disabled
+                        >
                           Already hired
                         </button>
                       )}
 
                       {app.status === "rejected" && (
-                        <button className="btn danger-btn" disabled>
+                        <button
+                          className="btn"
+                          style={dangerButtonStyle}
+                          disabled
+                        >
                           Rejected
                         </button>
                       )}

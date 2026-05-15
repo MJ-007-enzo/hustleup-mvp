@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, Tier } from "@/lib/types";
@@ -224,7 +225,7 @@ export default function PricingPage() {
   }
 
   function planButton(tier: Tier, label: string) {
-    const baseButtonStyle = {
+    const baseButtonStyle: CSSProperties = {
       minHeight: 54,
       borderRadius: 18,
       padding: "0 22px",
@@ -234,7 +235,7 @@ export default function PricingPage() {
       boxShadow: "0 14px 34px rgba(17,24,39,0.08)",
     };
 
-    const secondaryButtonStyle = {
+    const secondaryButtonStyle: CSSProperties = {
       ...baseButtonStyle,
       background:
         "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
@@ -242,7 +243,7 @@ export default function PricingPage() {
       color: "var(--premium)",
     };
 
-    const disabledButtonStyle = {
+    const disabledButtonStyle: CSSProperties = {
       ...baseButtonStyle,
       background:
         "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
@@ -252,7 +253,7 @@ export default function PricingPage() {
       cursor: "not-allowed",
     };
 
-    const primaryButtonStyle = {
+    const primaryButtonStyle: CSSProperties = {
       ...baseButtonStyle,
       boxShadow:
         "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
@@ -347,7 +348,9 @@ export default function PricingPage() {
           <BenefitItem>Limited applications</BenefitItem>
           <BenefitItem>Basic visibility</BenefitItem>
 
-          <div style={{ marginTop: 26 }}>{planButton("beginner", "Choose Beginner")}</div>
+          <div style={{ marginTop: 26 }}>
+            {planButton("beginner", "Choose Beginner")}
+          </div>
         </div>
 
         <div className="card">
@@ -373,24 +376,143 @@ export default function PricingPage() {
           <BenefitItem>Stronger profile ranking</BenefitItem>
           <BenefitItem>Future certification access</BenefitItem>
 
-          <div style={{ marginTop: 26 }}>{planButton("premium", "Pay ₹299")}</div>
+          <div style={{ marginTop: 26 }}>
+            {planButton("premium", "Pay ₹299")}
+          </div>
         </div>
       </section>
 
-      <section className="card" style={{ marginTop: 24 }}>
-        <h2>For job owners</h2>
-        <p>
-          Business pricing can be added later. For MVP testing, job posting is
-          open so you can validate demand first.
-        </p>
+      <section
+        className="card"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          marginTop: 28,
+          padding: 28,
+          borderRadius: 30,
+          border: "1px solid rgba(255,90,31,0.18)",
+          background:
+            "radial-gradient(circle at 8% 10%, rgba(255,90,31,0.12), transparent 28%), radial-gradient(circle at 92% 0%, rgba(245,158,11,0.1), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+          boxShadow:
+            "0 30px 80px rgba(17,24,39,0.1), 0 14px 36px rgba(255,90,31,0.08)",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: "0 0 auto 0",
+            height: 5,
+            background: "var(--brand-gradient)",
+          }}
+        />
 
-        <div className="actions">
-          <Link className="btn btn-primary" href="/post-job">
-            Post a job
-          </Link>
-          <Link className="btn" href="/applications">
-            Manage applicants
-          </Link>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 18,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ maxWidth: 720 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 16,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "var(--premium-gradient)",
+                  color: "white",
+                  boxShadow: "0 14px 30px rgba(17, 24, 39, 0.16)",
+                  fontWeight: 900,
+                  fontSize: 18,
+                }}
+              >
+                ↗
+              </div>
+
+              <div>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    width: "fit-content",
+                    padding: "5px 9px",
+                    borderRadius: 999,
+                    background: "var(--brand-soft)",
+                    color: "var(--brand-dark)",
+                    fontSize: 11,
+                    fontWeight: 850,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    marginBottom: 6,
+                  }}
+                >
+                  For job owners
+                </span>
+
+                <h2 style={{ margin: 0 }}>Post jobs and manage applicants.</h2>
+              </div>
+            </div>
+
+            <p style={{ marginBottom: 0 }}>
+              Business pricing can be added later. For MVP testing, job posting
+              is open so you can validate demand first.
+            </p>
+          </div>
+
+          <div
+            className="actions"
+            style={{
+              marginTop: 0,
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <Link
+              className="btn btn-primary"
+              href="/post-job"
+              style={{
+                minHeight: 54,
+                borderRadius: 18,
+                padding: "0 22px",
+                fontWeight: 850,
+                boxShadow:
+                  "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
+              }}
+            >
+              Post a job
+            </Link>
+
+            <Link
+              className="btn"
+              href="/applications"
+              style={{
+                minHeight: 54,
+                borderRadius: 18,
+                padding: "0 22px",
+                fontWeight: 850,
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+                border: "1px solid rgba(255,90,31,0.16)",
+                color: "var(--premium)",
+                boxShadow: "0 14px 34px rgba(17,24,39,0.08)",
+              }}
+            >
+              Manage applicants
+            </Link>
+          </div>
         </div>
       </section>
     </main>
