@@ -20,8 +20,9 @@ const premiumCardStyle: CSSProperties = {
   overflow: "hidden",
   border: "1px solid rgba(255,90,31,0.14)",
   background:
-    "radial-gradient(circle at 8% 8%, rgba(255,90,31,0.06), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
-  boxShadow: "0 24px 60px rgba(17,24,39,0.08)",
+    "radial-gradient(circle at 8% 8%, rgba(255,90,31,0.065), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.985), rgba(255,250,246,0.94))",
+  boxShadow:
+    "0 28px 70px rgba(17,24,39,0.105), 0 14px 34px rgba(255,90,31,0.055)",
 };
 
 const actionButtonStyle: CSSProperties = {
@@ -30,7 +31,7 @@ const actionButtonStyle: CSSProperties = {
   padding: "0 18px",
   fontWeight: 850,
   fontSize: 14,
-  boxShadow: "0 12px 28px rgba(17,24,39,0.08)",
+  boxShadow: "0 14px 32px rgba(17,24,39,0.09)",
 };
 
 const secondaryButtonStyle: CSSProperties = {
@@ -51,7 +52,7 @@ const dangerButtonStyle: CSSProperties = {
 const primaryButtonStyle: CSSProperties = {
   ...actionButtonStyle,
   boxShadow:
-    "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
+    "0 18px 40px rgba(255,90,31,0.2), 0 10px 24px rgba(17,24,39,0.08)",
 };
 
 const formValueStyle: CSSProperties = {
@@ -106,7 +107,7 @@ function Pill({
       background: "var(--premium-gradient)",
       color: "white",
       border: "1px solid rgba(17,24,39,0.1)",
-      boxShadow: "0 14px 30px rgba(17,24,39,0.12)",
+      boxShadow: "0 14px 30px rgba(17,24,39,0.14)",
     },
   };
 
@@ -123,17 +124,12 @@ function Pill({
         fontWeight: 850,
         textTransform: "uppercase",
         letterSpacing: "0.04em",
+        whiteSpace: "nowrap",
         ...styles[variant],
       }}
     >
       {variant === "premium" && (
-        <span
-          style={{
-            color: "#fbbf24",
-            fontSize: 12,
-            lineHeight: 1,
-          }}
-        >
+        <span style={{ color: "#fbbf24", fontSize: 12, lineHeight: 1 }}>
           ★
         </span>
       )}
@@ -152,11 +148,12 @@ function InfoTile({
   return (
     <div
       style={{
+        minWidth: 0,
         padding: "12px 14px",
         borderRadius: 16,
-        background: "rgba(255,255,255,0.78)",
+        background: "rgba(255,255,255,0.82)",
         border: "1px solid rgba(255,90,31,0.12)",
-        boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
+        boxShadow: "0 12px 28px rgba(17,24,39,0.055)",
       }}
     >
       <small
@@ -180,6 +177,7 @@ function InfoTile({
           fontWeight: 800,
           lineHeight: 1.3,
           fontSize: 14,
+          overflowWrap: "anywhere",
         }}
       >
         {value || "Not added"}
@@ -193,20 +191,22 @@ function StatCard({
   value,
   hint,
   icon,
+  compact,
 }: {
   label: string;
   value: string | number;
   hint: string;
   icon: string;
+  compact: boolean;
 }) {
   return (
     <div
       className="card"
       style={{
         ...premiumCardStyle,
-        borderRadius: 30,
-        padding: 30,
-        minHeight: 210,
+        borderRadius: compact ? 24 : 30,
+        padding: compact ? 20 : 30,
+        minHeight: compact ? 170 : 210,
       }}
     >
       <div
@@ -220,16 +220,16 @@ function StatCard({
 
       <div
         style={{
-          width: 44,
-          height: 44,
+          width: compact ? 38 : 44,
+          height: compact ? 38 : 44,
           borderRadius: 16,
           display: "grid",
           placeItems: "center",
           background: "var(--brand-soft)",
           color: "var(--brand-dark)",
           fontWeight: 900,
-          marginBottom: 22,
-          boxShadow: "0 10px 24px rgba(255,90,31,0.08)",
+          marginBottom: compact ? 16 : 22,
+          boxShadow: "0 14px 30px rgba(255,90,31,0.11)",
         }}
       >
         {icon}
@@ -242,7 +242,7 @@ function StatCard({
           fontWeight: 900,
           textTransform: "uppercase",
           letterSpacing: "0.05em",
-          fontSize: 13,
+          fontSize: compact ? 12 : 13,
         }}
       >
         {label}
@@ -251,9 +251,10 @@ function StatCard({
       <div
         className="stat"
         style={{
-          marginTop: 14,
+          marginTop: compact ? 10 : 14,
           marginBottom: 8,
           color: "var(--premium)",
+          fontSize: compact ? 34 : undefined,
         }}
       >
         {value}
@@ -264,6 +265,7 @@ function StatCard({
           marginBottom: 0,
           fontWeight: 700,
           lineHeight: 1.45,
+          fontSize: compact ? 14 : undefined,
         }}
       >
         {hint}
@@ -280,6 +282,18 @@ export default function MyJobsPage() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function checkMobile() {
+      setIsMobile(window.innerWidth <= 820);
+    }
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     loadPage();
@@ -493,7 +507,14 @@ export default function MyJobsPage() {
         </div>
       </section>
 
-      <section className="grid grid-3" style={{ marginBottom: 28 }}>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gap: isMobile ? 14 : 18,
+          marginBottom: 28,
+        }}
+      >
         <StatCard
           label="Total jobs"
           value={jobs.length}
@@ -503,6 +524,7 @@ export default function MyJobsPage() {
               : "Jobs posted by you."
           }
           icon="💼"
+          compact={isMobile}
         />
 
         <StatCard
@@ -510,6 +532,7 @@ export default function MyJobsPage() {
           value={openJobs}
           hint="Listings currently visible to job seekers."
           icon="↗"
+          compact={isMobile}
         />
 
         <StatCard
@@ -517,6 +540,7 @@ export default function MyJobsPage() {
           value={premiumJobs}
           hint="Listings highlighted with premium priority."
           icon="⭐"
+          compact={isMobile}
         />
       </section>
 
@@ -560,8 +584,13 @@ export default function MyJobsPage() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))",
-            gap: 22,
+            gridTemplateColumns: isMobile
+              ? "minmax(0, 1fr)"
+              : "repeat(auto-fit, minmax(480px, 1fr))",
+            gap: isMobile ? 18 : 22,
+            width: "100%",
+            maxWidth: "100%",
+            overflow: "visible",
           }}
         >
           {jobs.map((job) => (
@@ -569,8 +598,10 @@ export default function MyJobsPage() {
               key={job.id}
               style={{
                 ...premiumCardStyle,
-                borderRadius: 30,
-                padding: 24,
+                width: "100%",
+                maxWidth: "100%",
+                borderRadius: isMobile ? 24 : 30,
+                padding: isMobile ? 20 : 24,
                 minHeight: 0,
               }}
             >
@@ -592,7 +623,7 @@ export default function MyJobsPage() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 12,
+                  gap: 10,
                   flexWrap: "wrap",
                   marginBottom: 18,
                 }}
@@ -620,9 +651,10 @@ export default function MyJobsPage() {
                   marginTop: 0,
                   marginBottom: 8,
                   color: "var(--premium)",
-                  fontSize: "clamp(30px, 4vw, 44px)",
+                  fontSize: isMobile ? 34 : "clamp(30px, 4vw, 44px)",
                   lineHeight: 1.05,
                   letterSpacing: "-0.05em",
+                  overflowWrap: "anywhere",
                 }}
               >
                 {job.title}
@@ -633,7 +665,8 @@ export default function MyJobsPage() {
                   marginTop: 0,
                   marginBottom: 18,
                   color: "var(--muted)",
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 16,
+                  overflowWrap: "anywhere",
                 }}
               >
                 <strong style={{ color: "var(--premium)" }}>
@@ -646,7 +679,9 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(3, minmax(0, 1fr))",
                   gap: 10,
                   marginBottom: 18,
                 }}
@@ -664,11 +699,12 @@ export default function MyJobsPage() {
               <p
                 style={{
                   marginTop: 0,
-                  marginBottom: 28,
+                  marginBottom: 24,
                   color: "var(--muted)",
                   fontWeight: 650,
                   lineHeight: 1.6,
-                  minHeight: 52,
+                  minHeight: isMobile ? 0 : 52,
+                  overflowWrap: "anywhere",
                 }}
               >
                 {job.requirements || "No requirements added."}
@@ -677,7 +713,7 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                   gap: 10,
                 }}
               >
@@ -712,7 +748,7 @@ export default function MyJobsPage() {
             zIndex: 9999,
             display: "grid",
             placeItems: "center",
-            padding: 18,
+            padding: isMobile ? 12 : 18,
             background: "rgba(17,24,39,0.72)",
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
@@ -726,8 +762,8 @@ export default function MyJobsPage() {
               width: "min(920px, 100%)",
               maxHeight: "88vh",
               overflowY: "auto",
-              borderRadius: 30,
-              padding: 28,
+              borderRadius: isMobile ? 24 : 30,
+              padding: isMobile ? 20 : 28,
               border: "1px solid rgba(255,90,31,0.18)",
               background:
                 "radial-gradient(circle at 8% 6%, rgba(255,90,31,0.12), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.96))",
@@ -828,7 +864,13 @@ export default function MyJobsPage() {
                 />
               </label>
 
-              <div className="grid grid-2">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 <label className="label">
                   Job type
                   <input
@@ -857,7 +899,13 @@ export default function MyJobsPage() {
                 </label>
               </div>
 
-              <div className="grid grid-2">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 <label className="label">
                   Salary type
                   <select
@@ -956,7 +1004,13 @@ export default function MyJobsPage() {
                 />
               </label>
 
-              <div className="grid grid-2">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 <label className="label">
                   Openings
                   <input
@@ -1040,9 +1094,8 @@ export default function MyJobsPage() {
 
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  flexWrap: "wrap",
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                   gap: 12,
                   marginTop: 8,
                 }}

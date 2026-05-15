@@ -53,91 +53,6 @@ const dangerButtonStyle: CSSProperties = {
   color: "#b91c1c",
 };
 
-function StatCard({
-  label,
-  value,
-  hint,
-  icon,
-}: {
-  label: string;
-  value: string | number;
-  hint: string;
-  icon: string;
-}) {
-  return (
-    <div
-      className="card"
-      style={{
-        ...premiumCardStyle,
-        borderRadius: 28,
-        padding: 24,
-        minHeight: 170,
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: "0 0 auto 0",
-          height: 5,
-          background: "var(--brand-gradient)",
-        }}
-      />
-
-      <div
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: 16,
-          display: "grid",
-          placeItems: "center",
-          background: "var(--brand-soft)",
-          color: "var(--brand-dark)",
-          fontWeight: 900,
-          fontSize: 18,
-          marginBottom: 16,
-        }}
-      >
-        {icon}
-      </div>
-
-      <p
-        style={{
-          margin: 0,
-          color: "var(--muted)",
-          fontWeight: 850,
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          fontSize: 12,
-        }}
-      >
-        {label}
-      </p>
-
-      <div
-        className="stat"
-        style={{
-          marginTop: 8,
-          marginBottom: 8,
-          color: "var(--premium)",
-        }}
-      >
-        {value}
-      </div>
-
-      <p
-        style={{
-          margin: 0,
-          color: "var(--muted)",
-          fontWeight: 650,
-          lineHeight: 1.45,
-        }}
-      >
-        {hint}
-      </p>
-    </div>
-  );
-}
-
 function Pill({
   children,
   variant = "neutral",
@@ -162,9 +77,10 @@ function Pill({
       border: "1px solid rgba(239,68,68,0.2)",
     },
     premium: {
-      background: "var(--brand-soft)",
-      color: "var(--brand-dark)",
-      border: "1px solid rgba(255,90,31,0.18)",
+      background: "var(--premium-gradient)",
+      color: "white",
+      border: "1px solid rgba(17,24,39,0.1)",
+      boxShadow: "0 14px 30px rgba(17,24,39,0.12)",
     },
   };
 
@@ -180,11 +96,104 @@ function Pill({
         fontWeight: 850,
         textTransform: "uppercase",
         letterSpacing: "0.04em",
+        whiteSpace: "nowrap",
         ...styles[variant],
       }}
     >
       {children}
     </span>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  icon,
+  compact,
+}: {
+  label: string;
+  value: string | number;
+  hint: string;
+  icon: string;
+  compact: boolean;
+}) {
+  return (
+    <div
+      className="card"
+      style={{
+        ...premiumCardStyle,
+        borderRadius: compact ? 18 : 28,
+        padding: compact ? 14 : 24,
+        minHeight: compact ? 118 : 170,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: "0 0 auto 0",
+          height: compact ? 4 : 5,
+          background: "var(--brand-gradient)",
+        }}
+      />
+
+      <div
+        style={{
+          width: compact ? 30 : 42,
+          height: compact ? 30 : 42,
+          borderRadius: compact ? 12 : 16,
+          display: "grid",
+          placeItems: "center",
+          background: "var(--brand-soft)",
+          color: "var(--brand-dark)",
+          fontWeight: 900,
+          fontSize: compact ? 14 : 18,
+          marginBottom: compact ? 12 : 16,
+        }}
+      >
+        {icon}
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          color: "var(--muted)",
+          fontWeight: 850,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          fontSize: compact ? 10 : 12,
+        }}
+      >
+        {label}
+      </p>
+
+      <div
+        className="stat"
+        style={{
+          marginTop: compact ? 6 : 8,
+          marginBottom: compact ? 0 : 8,
+          color: "var(--premium)",
+          fontSize: compact ? 30 : undefined,
+          lineHeight: 1,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {value}
+      </div>
+
+      {!compact && (
+        <p
+          style={{
+            margin: 0,
+            color: "var(--muted)",
+            fontWeight: 650,
+            lineHeight: 1.45,
+          }}
+        >
+          {hint}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -203,7 +212,7 @@ function SectionCard({
       style={{
         ...premiumCardStyle,
         borderRadius: 30,
-        padding: 26,
+        padding: 24,
         marginTop: 24,
       }}
     >
@@ -258,6 +267,8 @@ function TableWrap({ children }: { children: ReactNode }) {
         border: "1px solid rgba(255,90,31,0.12)",
         background: "rgba(255,255,255,0.72)",
         boxShadow: "0 14px 34px rgba(17,24,39,0.06)",
+        overflowX: "auto",
+        width: "100%",
       }}
     >
       {children}
@@ -273,6 +284,18 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function checkMobile() {
+      setIsMobile(window.innerWidth <= 820);
+    }
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     loadAdmin();
@@ -439,7 +462,14 @@ export default function AdminPage() {
 
   return (
     <main className="container">
-      <section className="admin-hero">
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 18,
+          padding: isMobile ? "24px 0 16px" : "54px 0 26px",
+        }}
+      >
         <div>
           <span className="badge">Admin Control</span>
           <h1>Run HustleUp.</h1>
@@ -448,38 +478,29 @@ export default function AdminPage() {
             platform quality.
           </p>
         </div>
-
-        <div
-          className="jobs-summary-card"
-          style={{
-            ...premiumCardStyle,
-            borderRadius: 30,
-            padding: 24,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: "0 0 auto 0",
-              height: 5,
-              background: "var(--brand-gradient)",
-            }}
-          />
-
-          <span className="tag">Verified users</span>
-          <div className="stat">{verifiedUsers}</div>
-          <p>trusted profiles marked by admin</p>
-        </div>
       </section>
 
-      {message && <div className="notice success">{message}</div>}
+      {message && (
+        <div className="notice success" style={{ marginBottom: 18 }}>
+          {message}
+        </div>
+      )}
 
-      <section className="grid grid-3">
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "repeat(2, minmax(0, 1fr))"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: isMobile ? 10 : 18,
+        }}
+      >
         <StatCard
           label="Waitlist"
           value={waitlist.length}
           hint="Users waiting for access approval."
           icon="⏳"
+          compact={isMobile}
         />
 
         <StatCard
@@ -487,6 +508,7 @@ export default function AdminPage() {
           value={users.length}
           hint="All registered platform profiles."
           icon="👥"
+          compact={isMobile}
         />
 
         <StatCard
@@ -494,6 +516,7 @@ export default function AdminPage() {
           value={jobs.length}
           hint="All jobs posted on HustleUp."
           icon="💼"
+          compact={isMobile}
         />
 
         <StatCard
@@ -501,6 +524,7 @@ export default function AdminPage() {
           value={verifiedUsers}
           hint="Profiles approved by admin."
           icon="✓"
+          compact={isMobile}
         />
 
         <StatCard
@@ -508,6 +532,7 @@ export default function AdminPage() {
           value={premiumUsers}
           hint="Users currently on premium tier."
           icon="⭐"
+          compact={isMobile}
         />
 
         <StatCard
@@ -515,6 +540,7 @@ export default function AdminPage() {
           value={profile.full_name || "You"}
           hint="Current admin account."
           icon="⚙"
+          compact={isMobile}
         />
       </section>
 
@@ -553,7 +579,11 @@ export default function AdminPage() {
                     </td>
 
                     <td>
-                      <Pill variant={user.tier === "premium" ? "premium" : "neutral"}>
+                      <Pill
+                        variant={
+                          user.tier === "premium" ? "premium" : "neutral"
+                        }
+                      >
                         {user.tier}
                       </Pill>
                     </td>
