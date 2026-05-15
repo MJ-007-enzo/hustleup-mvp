@@ -116,6 +116,7 @@ function Pill({
         display: "inline-flex",
         width: "fit-content",
         alignItems: "center",
+        gap: variant === "premium" ? 7 : 0,
         borderRadius: 999,
         padding: "7px 11px",
         fontSize: 11,
@@ -125,6 +126,17 @@ function Pill({
         ...styles[variant],
       }}
     >
+      {variant === "premium" && (
+        <span
+          style={{
+            color: "#fbbf24",
+            fontSize: 12,
+            lineHeight: 1,
+          }}
+        >
+          ★
+        </span>
+      )}
       {children}
     </span>
   );
@@ -192,9 +204,9 @@ function StatCard({
       className="card"
       style={{
         ...premiumCardStyle,
-        borderRadius: 28,
-        padding: 24,
-        minHeight: 170,
+        borderRadius: 30,
+        padding: 30,
+        minHeight: 210,
       }}
     >
       <div
@@ -208,16 +220,16 @@ function StatCard({
 
       <div
         style={{
-          width: 42,
-          height: 42,
+          width: 44,
+          height: 44,
           borderRadius: 16,
           display: "grid",
           placeItems: "center",
           background: "var(--brand-soft)",
           color: "var(--brand-dark)",
           fontWeight: 900,
-          fontSize: 18,
-          marginBottom: 16,
+          marginBottom: 22,
+          boxShadow: "0 10px 24px rgba(255,90,31,0.08)",
         }}
       >
         {icon}
@@ -227,10 +239,10 @@ function StatCard({
         style={{
           margin: 0,
           color: "var(--muted)",
-          fontWeight: 850,
+          fontWeight: 900,
           textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          fontSize: 12,
+          letterSpacing: "0.05em",
+          fontSize: 13,
         }}
       >
         {label}
@@ -239,7 +251,7 @@ function StatCard({
       <div
         className="stat"
         style={{
-          marginTop: 8,
+          marginTop: 14,
           marginBottom: 8,
           color: "var(--premium)",
         }}
@@ -249,9 +261,8 @@ function StatCard({
 
       <p
         style={{
-          margin: 0,
-          color: "var(--muted)",
-          fontWeight: 650,
+          marginBottom: 0,
+          fontWeight: 700,
           lineHeight: 1.45,
         }}
       >
@@ -362,7 +373,6 @@ export default function MyJobsPage() {
         requirements: editingJob.requirements,
         is_premium: editingJob.is_premium,
         status: editingJob.status,
-
         responsibilities: editingJob.responsibilities,
         who_can_apply: editingJob.who_can_apply,
         benefits: editingJob.benefits,
@@ -419,7 +429,9 @@ export default function MyJobsPage() {
     return (
       <main className="container">
         <span className="badge">Access blocked</span>
+
         <h1>You cannot manage jobs.</h1>
+
         <p>
           Your current role is <strong>{profile?.role}</strong>. Only job owners
           and admins can manage posted jobs.
@@ -429,6 +441,7 @@ export default function MyJobsPage() {
           <Link className="btn btn-primary" href="/jobs">
             Browse jobs
           </Link>
+
           <Link className="btn" href="/dashboard">
             Go to dashboard
           </Link>
@@ -442,7 +455,7 @@ export default function MyJobsPage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gridTemplateColumns: "1fr",
           gap: 22,
           alignItems: "stretch",
           marginBottom: 26,
@@ -450,9 +463,11 @@ export default function MyJobsPage() {
       >
         <div>
           <span className="badge">Job management</span>
+
           <h1>
             {profile.role === "admin" ? "Manage all jobs." : "Manage your jobs."}
           </h1>
+
           <p className="hero-copy">
             Edit job details, update salary, close listings, mark premium jobs,
             or delete old test jobs.
@@ -476,52 +491,9 @@ export default function MyJobsPage() {
             </Link>
           </div>
         </div>
-
-        <div
-          className="card"
-          style={{
-            ...premiumCardStyle,
-            borderRadius: 30,
-            padding: 24,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: "0 0 auto 0",
-              height: 5,
-              background: "var(--brand-gradient)",
-            }}
-          />
-
-          <span className="tag">Active control</span>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 10,
-              marginTop: 18,
-            }}
-          >
-            <InfoTile label="Total" value={jobs.length} />
-            <InfoTile label="Open" value={openJobs} />
-            <InfoTile label="Premium" value={premiumJobs} />
-          </div>
-        </div>
       </section>
 
-      {message && (
-        <div
-          className={`notice ${
-            message.includes("successfully") ? "success" : "error"
-          }`}
-        >
-          {message}
-        </div>
-      )}
-
-      <section className="grid grid-3" style={{ marginBottom: 24 }}>
+      <section className="grid grid-3" style={{ marginBottom: 28 }}>
         <StatCard
           label="Total jobs"
           value={jobs.length}
@@ -548,6 +520,17 @@ export default function MyJobsPage() {
         />
       </section>
 
+      {message && (
+        <div
+          className={`notice ${
+            message.includes("successfully") ? "success" : "error"
+          }`}
+          style={{ marginBottom: 22 }}
+        >
+          {message}
+        </div>
+      )}
+
       {jobs.length === 0 ? (
         <section
           className="card"
@@ -558,7 +541,9 @@ export default function MyJobsPage() {
           }}
         >
           <span className="tag">No jobs yet</span>
+
           <h3 style={{ marginTop: 14 }}>No posted jobs found.</h3>
+
           <p>Create a job first, then you can edit or delete it here.</p>
 
           <div className="actions">
@@ -620,7 +605,7 @@ export default function MyJobsPage() {
                     alignItems: "center",
                   }}
                 >
-                  {job.is_premium && <Pill variant="premium">⭐ Premium</Pill>}
+                  {job.is_premium && <Pill variant="premium">Premium</Pill>}
 
                   <Pill variant={job.status === "open" ? "success" : "neutral"}>
                     {job.status}
@@ -783,6 +768,7 @@ export default function MyJobsPage() {
             </button>
 
             <span className="badge">Edit job</span>
+
             <h2
               style={{
                 marginTop: 14,
@@ -1038,7 +1024,6 @@ export default function MyJobsPage() {
                 className="label"
                 style={{
                   display: "flex",
-                  gridTemplateColumns: "auto 1fr",
                   alignItems: "center",
                   gap: 10,
                 }}
