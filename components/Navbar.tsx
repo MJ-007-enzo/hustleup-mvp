@@ -92,6 +92,12 @@ export default function Navbar() {
             </Link>
           )}
 
+          {!loading && email && (role === "job_owner" || role === "admin") && (
+  <Link href="/my-jobs" onClick={closeMenu}>
+    My Jobs
+  </Link>
+)}
+
           {!loading && email && (
             <Link href="/applications" onClick={closeMenu}>
               Applications
