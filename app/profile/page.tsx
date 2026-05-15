@@ -49,21 +49,78 @@ const timeOptions = [
   "11:00 PM",
 ];
 
+const tamilNaduCities = [
+  "Chennai",
+  "Coimbatore",
+  "Madurai",
+  "Trichy",
+  "Salem",
+  "Erode",
+  "Tiruppur",
+  "Vellore",
+  "Thanjavur",
+  "Dindigul",
+  "Tirunelveli",
+  "Thoothukudi",
+  "Nagercoil",
+  "Kanchipuram",
+  "Chengalpattu",
+  "Tambaram",
+  "Avadi",
+  "Hosur",
+  "Krishnagiri",
+  "Dharmapuri",
+  "Namakkal",
+  "Karur",
+  "Perambalur",
+  "Ariyalur",
+  "Cuddalore",
+  "Villupuram",
+  "Kallakurichi",
+  "Tiruvannamalai",
+  "Ranipet",
+  "Tirupattur",
+  "Mayiladuthurai",
+  "Nagapattinam",
+  "Tiruvarur",
+  "Pudukkottai",
+  "Sivaganga",
+  "Ramanathapuram",
+  "Virudhunagar",
+  "Tenkasi",
+  "Ooty",
+];
+
+function cleanCityName(value: string) {
+  const cleanedValue = value.trim();
+
+  const match = tamilNaduCities.find(
+    (city) => city.toLowerCase() === cleanedValue.toLowerCase()
+  );
+
+  return match || cleanedValue;
+}
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [occupation, setOccupation] = useState("");
   const [skills, setSkills] = useState("");
+
   const [startTime, setStartTime] = useState("5:00 PM");
   const [endTime, setEndTime] = useState("10:00 PM");
+
   const [salaryAmount, setSalaryAmount] = useState(500);
   const [salaryPeriod, setSalaryPeriod] = useState<SalaryPeriod>("day");
+
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [experience, setExperience] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
+
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -74,6 +131,18 @@ export default function ProfilePage() {
 
   const availability = `${startTime} to ${endTime}`;
   const expectedSalary = `₹${salaryAmount}/${salaryPeriod}`;
+
+  const citySuggestions = useMemo(() => {
+    const query = location.trim().toLowerCase();
+
+    if (!query) {
+      return tamilNaduCities;
+    }
+
+    return tamilNaduCities.filter((city) =>
+      city.toLowerCase().includes(query)
+    );
+  }, [location]);
 
   useEffect(() => {
     loadProfile();
@@ -168,10 +237,15 @@ export default function ProfilePage() {
 
     const lowerValue = value.toLowerCase();
 
-    if (lowerValue.includes("hour")) setSalaryPeriod("hour");
-    else if (lowerValue.includes("week")) setSalaryPeriod("week");
-    else if (lowerValue.includes("month")) setSalaryPeriod("month");
-    else setSalaryPeriod("day");
+    if (lowerValue.includes("hour")) {
+      setSalaryPeriod("hour");
+    } else if (lowerValue.includes("week")) {
+      setSalaryPeriod("week");
+    } else if (lowerValue.includes("month")) {
+      setSalaryPeriod("month");
+    } else {
+      setSalaryPeriod("day");
+    }
   }
 
   async function loadProfile() {
@@ -198,12 +272,12 @@ export default function ProfilePage() {
     }
 
     const profileData = data as UpgradedProfile;
-    setProfile(profileData);
 
+    setProfile(profileData);
     setFullName(profileData.full_name || "");
     setOccupation(profileData.occupation || "");
     setSkills(profileData.skills || "");
-    setLocation(profileData.location || "");
+    setLocation(cleanCityName(profileData.location || ""));
     setPhone(profileData.phone || "");
     setBio(profileData.bio || "");
     setExperience(profileData.experience || "");
@@ -218,6 +292,8 @@ export default function ProfilePage() {
 
     if (!profile) return;
 
+    const cleanedLocation = cleanCityName(location);
+
     setSaving(true);
     setMessage("");
 
@@ -229,7 +305,7 @@ export default function ProfilePage() {
         skills,
         availability,
         expected_salary: expectedSalary,
-        location,
+        location: cleanedLocation,
         phone,
         bio,
         experience,
@@ -244,6 +320,7 @@ export default function ProfilePage() {
       return;
     }
 
+    setLocation(cleanedLocation);
     setMessage("Profile updated successfully.");
     loadProfile();
   }
@@ -258,6 +335,11 @@ export default function ProfilePage() {
 
       return prev + 50;
     });
+  }
+
+  function selectCity(city: string) {
+    setLocation(city);
+    setCityDropdownOpen(false);
   }
 
   if (loading) {
@@ -380,7 +462,7 @@ export default function ProfilePage() {
             <input
               className="input"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(event) => setFullName(event.target.value)}
               placeholder="Example: Krishna Kumar"
             />
           </label>
@@ -390,20 +472,99 @@ export default function ProfilePage() {
             <input
               className="input"
               value={occupation}
-              onChange={(e) => setOccupation(e.target.value)}
+              onChange={(event) => setOccupation(event.target.value)}
               placeholder="Example: College student, fresher, cafe owner"
             />
           </label>
 
           <div className="grid grid-2">
-            <label className="label">
+            <label
+              className="label"
+              style={{
+                position: "relative",
+                overflow: "visible",
+                zIndex: cityDropdownOpen ? 500 : 1,
+              }}
+            >
               Location
               <input
                 className="input"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Example: Trichy"
+                onFocus={() => setCityDropdownOpen(true)}
+                onClick={() => setCityDropdownOpen(true)}
+                onChange={(event) => {
+                  setLocation(event.target.value);
+                  setCityDropdownOpen(true);
+                }}
+                onBlur={() => {
+                  setTimeout(() => {
+                    setLocation((prev) => cleanCityName(prev));
+                    setCityDropdownOpen(false);
+                  }, 180);
+                }}
+                placeholder="Search or select your city"
               />
+
+              {cityDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "74px",
+                    left: 0,
+                    right: 0,
+                    zIndex: 9999,
+                    maxHeight: "240px",
+                    overflowY: "auto",
+                    border: "1px solid var(--line-warm)",
+                    borderRadius: "16px",
+                    background: "#ffffff",
+                    boxShadow: "0 24px 60px rgba(17, 24, 39, 0.18)",
+                    padding: "8px",
+                  }}
+                >
+                  {citySuggestions.length > 0 ? (
+                    citySuggestions.map((city) => (
+                      <button
+                        type="button"
+                        key={city}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          selectCity(city);
+                        }}
+                        style={{
+                          width: "100%",
+                          display: "block",
+                          textAlign: "left",
+                          border: 0,
+                          background:
+                            city.toLowerCase() === location.trim().toLowerCase()
+                              ? "var(--brand-soft)"
+                              : "transparent",
+                          color: "var(--premium)",
+                          borderRadius: "12px",
+                          padding: "12px",
+                          fontWeight: 850,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          fontSize: "14px",
+                        }}
+                      >
+                        {city}
+                      </button>
+                    ))
+                  ) : (
+                    <div
+                      style={{
+                        padding: "12px",
+                        color: "var(--muted)",
+                        fontWeight: 750,
+                      }}
+                    >
+                      No city found. You can type manually.
+                    </div>
+                  )}
+                </div>
+              )}
             </label>
 
             <label className="label">
@@ -411,7 +572,7 @@ export default function ProfilePage() {
               <input
                 className="input"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(event) => setPhone(event.target.value)}
                 placeholder="Example: +91 98765 43210"
               />
             </label>
@@ -422,7 +583,7 @@ export default function ProfilePage() {
             <textarea
               className="textarea"
               value={bio}
-              onChange={(e) => setBio(e.target.value)}
+              onChange={(event) => setBio(event.target.value)}
               placeholder="Example: I am a 3rd year student looking for evening part-time work."
             />
           </label>
@@ -434,7 +595,7 @@ export default function ProfilePage() {
             <textarea
               className="textarea"
               value={skills}
-              onChange={(e) => setSkills(e.target.value)}
+              onChange={(event) => setSkills(event.target.value)}
               placeholder="Example: customer handling, MS Excel, sales, typing, communication"
             />
           </label>
@@ -444,7 +605,7 @@ export default function ProfilePage() {
             <textarea
               className="textarea"
               value={experience}
-              onChange={(e) => setExperience(e.target.value)}
+              onChange={(event) => setExperience(event.target.value)}
               placeholder="Example: 2 months cafe helper experience, college event volunteering"
             />
           </label>
@@ -460,8 +621,8 @@ export default function ProfilePage() {
                 <select
                   className="select"
                   value={startTime}
-                  onChange={(e) => {
-                    setStartTime(e.target.value);
+                  onChange={(event) => {
+                    setStartTime(event.target.value);
                     triggerAvailabilityMotion();
                   }}
                 >
@@ -477,8 +638,8 @@ export default function ProfilePage() {
                 <select
                   className="select"
                   value={endTime}
-                  onChange={(e) => {
-                    setEndTime(e.target.value);
+                  onChange={(event) => {
+                    setEndTime(event.target.value);
                     triggerAvailabilityMotion();
                   }}
                 >
@@ -514,8 +675,8 @@ export default function ProfilePage() {
                   min={50}
                   step={50}
                   value={salaryAmount}
-                  onChange={(e) => {
-                    setSalaryAmount(Number(e.target.value));
+                  onChange={(event) => {
+                    setSalaryAmount(Number(event.target.value));
                     triggerSalaryMotion();
                   }}
                 />
@@ -531,8 +692,8 @@ export default function ProfilePage() {
                 <select
                   className="salary-period-select"
                   value={salaryPeriod}
-                  onChange={(e) => {
-                    setSalaryPeriod(e.target.value as SalaryPeriod);
+                  onChange={(event) => {
+                    setSalaryPeriod(event.target.value as SalaryPeriod);
                     triggerSalaryMotion();
                   }}
                 >
@@ -550,7 +711,7 @@ export default function ProfilePage() {
             <input
               className="input"
               value={portfolioUrl}
-              onChange={(e) => setPortfolioUrl(e.target.value)}
+              onChange={(event) => setPortfolioUrl(event.target.value)}
               placeholder="Example: LinkedIn, resume, portfolio link"
             />
           </label>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job } from "@/lib/types";
 
@@ -13,37 +13,153 @@ type JobWithDetails = Job & {
   contact_note?: string | null;
 };
 
+type PremiumFilter = "all" | "premium" | "normal";
+
+const tamilNaduCities = [
+  "Chennai",
+  "Coimbatore",
+  "Madurai",
+  "Trichy",
+  "Salem",
+  "Erode",
+  "Tiruppur",
+  "Vellore",
+  "Thanjavur",
+  "Dindigul",
+  "Tirunelveli",
+  "Thoothukudi",
+  "Nagercoil",
+  "Kanchipuram",
+  "Chengalpattu",
+  "Tambaram",
+  "Avadi",
+  "Hosur",
+  "Krishnagiri",
+  "Dharmapuri",
+  "Namakkal",
+  "Karur",
+  "Perambalur",
+  "Ariyalur",
+  "Cuddalore",
+  "Villupuram",
+  "Kallakurichi",
+  "Tiruvannamalai",
+  "Ranipet",
+  "Tirupattur",
+  "Mayiladuthurai",
+  "Nagapattinam",
+  "Tiruvarur",
+  "Pudukkottai",
+  "Sivaganga",
+  "Ramanathapuram",
+  "Virudhunagar",
+  "Tenkasi",
+  "Ooty",
+];
+
+function normalizeLocation(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [message, setMessage] = useState("");
   const [applicationMessage, setApplicationMessage] = useState("");
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
-  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [selectedJob, setSelectedJob] = useState<JobWithDetails | null>(null);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
 
-useEffect(() => {
-  loadJobs();
-  async function loadAppliedJobs() {
-  const { data: authData } = await supabase.auth.getUser();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [jobTypeFilter, setJobTypeFilter] = useState("all");
+  const [salaryPeriodFilter, setSalaryPeriodFilter] = useState("all");
+  const [premiumFilter, setPremiumFilter] = useState<PremiumFilter>("all");
 
-  if (!authData.user) {
-    setAppliedJobIds(new Set());
-    return;
+  const locations = tamilNaduCities;
+
+  const jobTypes = useMemo(() => {
+    const values = jobs
+      .map((job) => job.job_type)
+      .filter(Boolean)
+      .map((value) => value.trim());
+
+    return Array.from(new Set(values)).sort();
+  }, [jobs]);
+
+  const salaryPeriods = useMemo(() => {
+    const values = jobs
+      .map((job) => job.salary_type)
+      .filter(Boolean)
+      .map((value) => value.trim());
+
+    return Array.from(new Set(values)).sort();
+  }, [jobs]);
+
+  useEffect(() => {
+    loadJobs();
+    loadAppliedJobs();
+  }, []);
+
+  const filteredJobs = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return jobs.filter((job) => {
+      const searchableText = [
+        job.title,
+        job.company_name,
+        job.location,
+        job.job_type,
+        job.requirements,
+        job.responsibilities,
+        job.who_can_apply,
+        job.benefits,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch =
+        query.length === 0 || searchableText.includes(query);
+
+      const matchesLocation =
+        locationFilter === "all" ||
+        normalizeLocation(job.location) === normalizeLocation(locationFilter);
+
+      const matchesJobType =
+        jobTypeFilter === "all" || job.job_type === jobTypeFilter;
+
+      const matchesSalaryPeriod =
+        salaryPeriodFilter === "all" || job.salary_type === salaryPeriodFilter;
+
+      const matchesPremium =
+        premiumFilter === "all" ||
+        (premiumFilter === "premium" && job.is_premium) ||
+        (premiumFilter === "normal" && !job.is_premium);
+
+      return (
+        matchesSearch &&
+        matchesLocation &&
+        matchesJobType &&
+        matchesSalaryPeriod &&
+        matchesPremium
+      );
+    });
+  }, [
+    jobs,
+    searchQuery,
+    locationFilter,
+    jobTypeFilter,
+    salaryPeriodFilter,
+    premiumFilter,
+  ]);
+
+  function clearFilters() {
+    setSearchQuery("");
+    setLocationFilter("all");
+    setJobTypeFilter("all");
+    setSalaryPeriodFilter("all");
+    setPremiumFilter("all");
   }
-
-  const { data, error } = await supabase
-    .from("applications")
-    .select("job_id")
-    .eq("seeker_id", authData.user.id);
-
-  if (error) {
-    return;
-  }
-
-  setAppliedJobIds(new Set((data ?? []).map((item) => item.job_id)));
-}
-  loadAppliedJobs();
-}, []);
 
   async function loadJobs() {
     const { data, error } = await supabase
@@ -61,11 +177,32 @@ useEffect(() => {
     setJobs((data ?? []) as JobWithDetails[]);
   }
 
+  async function loadAppliedJobs() {
+    const { data: authData } = await supabase.auth.getUser();
+
+    if (!authData.user) {
+      setAppliedJobIds(new Set());
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("applications")
+      .select("job_id")
+      .eq("seeker_id", authData.user.id);
+
+    if (error) {
+      return;
+    }
+
+    setAppliedJobIds(new Set((data ?? []).map((item) => item.job_id)));
+  }
+
   async function apply(jobId: string) {
     if (appliedJobIds.has(jobId)) {
-  setApplicationMessage("You already applied for this job.");
-  return;
-}
+      setApplicationMessage("You already applied for this job.");
+      return;
+    }
+
     setApplicationMessage("");
     setApplyingJobId(jobId);
 
@@ -85,30 +222,30 @@ useEffect(() => {
 
     setApplyingJobId(null);
 
-   if (error) {
-  if (error.message.includes("duplicate")) {
+    if (error) {
+      if (error.message.includes("duplicate")) {
+        setAppliedJobIds((prev) => {
+          const next = new Set(prev);
+          next.add(jobId);
+          return next;
+        });
+
+        setApplicationMessage("You already applied for this job.");
+      } else {
+        setApplicationMessage(error.message);
+      }
+
+      return;
+    }
+
     setAppliedJobIds((prev) => {
       const next = new Set(prev);
       next.add(jobId);
       return next;
     });
 
-    setApplicationMessage("You already applied for this job.");
-  } else {
-    setApplicationMessage(error.message);
-  }
-
-  return;
-}
-
-  setAppliedJobIds((prev) => {
-  const next = new Set(prev);
-  next.add(jobId);
-  return next;
-});
-
-setApplicationMessage("Application submitted successfully.");
-setSelectedJob(null);
+    setApplicationMessage("Application submitted successfully.");
+    setSelectedJob(null);
   }
 
   function salaryLabel(job: JobWithDetails) {
@@ -116,7 +253,9 @@ setSelectedJob(null);
   }
 
   function detailText(value?: string | null) {
-    return value && value.trim().length > 0 ? value : "Not added by the job owner.";
+    return value && value.trim().length > 0
+      ? value
+      : "Not added by the job owner.";
   }
 
   return (
@@ -126,15 +265,18 @@ setSelectedJob(null);
           <span className="badge">Open opportunities</span>
           <h1>Browse part-time jobs.</h1>
           <p className="hero-copy">
-            Find local, flexible work opportunities. Premium listings appear
-            first so serious seekers can discover better jobs faster.
+            Find local, flexible work opportunities. Search and filter jobs by
+            location, type, salary period, and premium access.
           </p>
         </div>
 
         <div className="jobs-summary-card">
           <span className="tag">Live marketplace</span>
-          <div className="stat">{jobs.length}</div>
-          <p>open job{jobs.length === 1 ? "" : "s"} available now</p>
+          <div className="stat">{filteredJobs.length}</div>
+          <p>
+            result{filteredJobs.length === 1 ? "" : "s"} from {jobs.length} open
+            job{jobs.length === 1 ? "" : "s"}
+          </p>
         </div>
       </section>
 
@@ -150,12 +292,103 @@ setSelectedJob(null);
         </div>
       )}
 
+      <section className="jobs-filter-panel">
+        <div className="jobs-search-box">
+          <label className="label">
+            Search jobs
+            <input
+              className="input"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search title, company, skills, benefits..."
+            />
+          </label>
+        </div>
+
+        <div className="jobs-filter-grid">
+          <label className="label">
+            Location
+            <select
+              className="select"
+              value={locationFilter}
+              onChange={(event) => setLocationFilter(event.target.value)}
+            >
+              <option value="all">All locations</option>
+              {locations.map((location) => (
+                <option value={location} key={location}>
+                  {location}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="label">
+            Job type
+            <select
+              className="select"
+              value={jobTypeFilter}
+              onChange={(event) => setJobTypeFilter(event.target.value)}
+            >
+              <option value="all">All types</option>
+              {jobTypes.map((type) => (
+                <option value={type} key={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="label">
+            Salary period
+            <select
+              className="select"
+              value={salaryPeriodFilter}
+              onChange={(event) => setSalaryPeriodFilter(event.target.value)}
+            >
+              <option value="all">All salary periods</option>
+              {salaryPeriods.map((period) => (
+                <option value={period} key={period}>
+                  /{period}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="label">
+            Listing type
+            <select
+              className="select"
+              value={premiumFilter}
+              onChange={(event) =>
+                setPremiumFilter(event.target.value as PremiumFilter)
+              }
+            >
+              <option value="all">All listings</option>
+              <option value="premium">Premium only</option>
+              <option value="normal">Normal only</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="jobs-filter-footer">
+          <p>
+            Showing <strong>{filteredJobs.length}</strong> of{" "}
+            <strong>{jobs.length}</strong> open listings.
+          </p>
+
+          <button className="btn" onClick={clearFilters}>
+            Clear filters
+          </button>
+        </div>
+      </section>
+
       <section className="jobs-toolbar">
         <div>
           <h2>Available jobs</h2>
           <p>
-            Showing <strong>{jobs.length}</strong> active listing
-            {jobs.length === 1 ? "" : "s"}.
+            {filteredJobs.length === jobs.length
+              ? "Showing all active listings."
+              : "Showing filtered job results."}
           </p>
         </div>
       </section>
@@ -172,7 +405,18 @@ setSelectedJob(null);
           </div>
         )}
 
-        {jobs.map((job) => (
+        {jobs.length > 0 && filteredJobs.length === 0 && (
+          <div className="card empty-jobs-card">
+            <span className="tag">No matching jobs</span>
+            <h3>No jobs match these filters.</h3>
+            <p>Try clearing filters or searching a different keyword.</p>
+            <button className="btn btn-primary" onClick={clearFilters}>
+              Clear filters
+            </button>
+          </div>
+        )}
+
+        {filteredJobs.map((job) => (
           <article
             className={`job-card ${job.is_premium ? "job-card-premium" : ""}`}
             key={job.id}
@@ -224,17 +468,17 @@ setSelectedJob(null);
                 View details
               </button>
 
-            <button
-  className="btn btn-primary"
-  onClick={() => apply(job.id)}
-  disabled={applyingJobId === job.id || appliedJobIds.has(job.id)}
->
-  {appliedJobIds.has(job.id)
-    ? "Applied"
-    : applyingJobId === job.id
-    ? "Applying..."
-    : "Apply now"}
-</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => apply(job.id)}
+                disabled={applyingJobId === job.id || appliedJobIds.has(job.id)}
+              >
+                {appliedJobIds.has(job.id)
+                  ? "Applied"
+                  : applyingJobId === job.id
+                    ? "Applying..."
+                    : "Apply now"}
+              </button>
             </div>
           </article>
         ))}
@@ -341,17 +585,20 @@ setSelectedJob(null);
                 Close
               </button>
 
-             <button
-  className="btn btn-primary"
-  onClick={() => apply(selectedJob.id)}
-  disabled={applyingJobId === selectedJob.id || appliedJobIds.has(selectedJob.id)}
->
-  {appliedJobIds.has(selectedJob.id)
-    ? "Applied"
-    : applyingJobId === selectedJob.id
-    ? "Applying..."
-    : "Apply for this job"}
-</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => apply(selectedJob.id)}
+                disabled={
+                  applyingJobId === selectedJob.id ||
+                  appliedJobIds.has(selectedJob.id)
+                }
+              >
+                {appliedJobIds.has(selectedJob.id)
+                  ? "Applied"
+                  : applyingJobId === selectedJob.id
+                    ? "Applying..."
+                    : "Apply for this job"}
+              </button>
             </div>
           </div>
         </div>

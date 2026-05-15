@@ -2837,3 +2837,72 @@ body:has(.job-modal-backdrop) {
     width: 100%;
   }
 }
+/* ================= JOB SEARCH + FILTERS ================= */
+
+.jobs-filter-panel {
+  margin: 24px 0;
+  padding: 18px;
+  border: 1px solid var(--line-warm);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 250, 246, 0.9));
+  box-shadow: var(--shadow-soft);
+}
+
+.jobs-search-box {
+  margin-bottom: 14px;
+}
+
+.jobs-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.jobs-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line-warm);
+}
+
+.jobs-filter-footer p {
+  margin: 0;
+}
+
+.jobs-filter-footer .btn {
+  width: auto;
+}
+
+.jobs-filter-panel .input,
+.jobs-filter-panel .select {
+  min-height: 48px;
+}
+
+.jobs-filter-panel {
+  animation: subtleFadeUp 0.32s ease both;
+}
+
+@media (max-width: 900px) {
+  .jobs-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .jobs-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jobs-filter-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .jobs-filter-footer .btn {
+    width: 100%;
+  }
+}
