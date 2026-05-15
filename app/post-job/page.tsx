@@ -1,11 +1,74 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
+type SalaryType = "hour" | "day" | "week" | "month";
+
+type UpgradedProfile = Profile & {
+  location?: string | null;
+  phone?: string | null;
+  bio?: string | null;
+  experience?: string | null;
+  portfolio_url?: string | null;
+  is_verified?: boolean | null;
+};
+
+const tamilNaduCities = [
+  "Chennai",
+  "Coimbatore",
+  "Madurai",
+  "Trichy",
+  "Salem",
+  "Erode",
+  "Tiruppur",
+  "Vellore",
+  "Thanjavur",
+  "Dindigul",
+  "Tirunelveli",
+  "Thoothukudi",
+  "Nagercoil",
+  "Kanchipuram",
+  "Chengalpattu",
+  "Tambaram",
+  "Avadi",
+  "Hosur",
+  "Krishnagiri",
+  "Dharmapuri",
+  "Namakkal",
+  "Karur",
+  "Perambalur",
+  "Ariyalur",
+  "Cuddalore",
+  "Villupuram",
+  "Kallakurichi",
+  "Tiruvannamalai",
+  "Ranipet",
+  "Tirupattur",
+  "Mayiladuthurai",
+  "Nagapattinam",
+  "Tiruvarur",
+  "Pudukkottai",
+  "Sivaganga",
+  "Ramanathapuram",
+  "Virudhunagar",
+  "Tenkasi",
+  "Ooty",
+];
+
+function cleanCityName(value: string) {
+  const cleanedValue = value.trim();
+
+  const match = tamilNaduCities.find(
+    (city) => city.toLowerCase() === cleanedValue.toLowerCase()
+  );
+
+  return match || cleanedValue;
+}
+
 export default function PostJobPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
   const [title, setTitle] = useState("");
@@ -13,7 +76,7 @@ export default function PostJobPage() {
   const [location, setLocation] = useState("");
   const [jobType, setJobType] = useState("Part-time");
   const [duration, setDuration] = useState("");
-  const [salaryType, setSalaryType] = useState<"hour" | "day" | "week" | "month">("day");
+  const [salaryType, setSalaryType] = useState<SalaryType>("day");
   const [salaryAmount, setSalaryAmount] = useState(500);
   const [requirements, setRequirements] = useState("");
   const [isPremium, setIsPremium] = useState(false);
@@ -25,8 +88,22 @@ export default function PostJobPage() {
   const [workAddress, setWorkAddress] = useState("");
   const [contactNote, setContactNote] = useState("");
 
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const citySuggestions = useMemo(() => {
+    const query = location.trim().toLowerCase();
+
+    if (!query) {
+      return tamilNaduCities;
+    }
+
+    return tamilNaduCities.filter((city) =>
+      city.toLowerCase().includes(query)
+    );
+  }, [location]);
 
   useEffect(() => {
     checkAccess();
@@ -52,12 +129,18 @@ export default function PostJobPage() {
       return;
     }
 
-    setProfile(data as Profile);
+    setProfile(data as UpgradedProfile);
     setCheckingAccess(false);
+  }
+
+  function selectCity(city: string) {
+    setLocation(city);
+    setCityDropdownOpen(false);
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+
     setBusy(true);
     setMessage("");
 
@@ -74,11 +157,19 @@ export default function PostJobPage() {
       return;
     }
 
+    const cleanedLocation = cleanCityName(location);
+
+    if (!cleanedLocation) {
+      setMessage("Please select or enter a job location.");
+      setBusy(false);
+      return;
+    }
+
     const { error } = await supabase.from("jobs").insert({
       owner_id: authData.user.id,
       title,
       company_name: companyName,
-      location,
+      location: cleanedLocation,
       job_type: jobType,
       duration,
       salary_type: salaryType,
@@ -118,6 +209,7 @@ export default function PostJobPage() {
     setOpenings(1);
     setWorkAddress("");
     setContactNote("");
+    setCityDropdownOpen(false);
 
     setMessage("Job posted successfully.");
   }
@@ -135,6 +227,7 @@ export default function PostJobPage() {
       <main className="container">
         <span className="badge">Access blocked</span>
         <h1>You cannot post jobs.</h1>
+
         <p>
           Your current role is <strong>{profile?.role}</strong>. Only job owners
           and admins can post jobs.
@@ -144,6 +237,7 @@ export default function PostJobPage() {
           <a className="btn btn-primary" href="/jobs">
             Browse jobs
           </a>
+
           <a className="btn" href="/dashboard">
             Go to dashboard
           </a>
@@ -157,7 +251,9 @@ export default function PostJobPage() {
       <section className="grid grid-2">
         <div>
           <span className="badge">For job owners</span>
+
           <h1>Post a part-time job.</h1>
+
           <p>
             Add clear salary, location, timing, requirements, responsibilities,
             benefits, and who can apply. The job card will stay clean, while the
@@ -168,6 +264,7 @@ export default function PostJobPage() {
             <h3>What makes a good listing?</h3>
             <p>✓ Clear job title</p>
             <p>✓ Exact timing and salary</p>
+            <p>✓ Correct city location</p>
             <p>✓ Real responsibilities</p>
             <p>✓ Benefits or perks</p>
             <p>✓ Who can apply</p>
@@ -182,7 +279,7 @@ export default function PostJobPage() {
             <input
               className="input"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(event) => setTitle(event.target.value)}
               placeholder="Example: Cafe Assistant"
               required
             />
@@ -193,21 +290,100 @@ export default function PostJobPage() {
             <input
               className="input"
               value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
+              onChange={(event) => setCompanyName(event.target.value)}
               placeholder="Example: Bright Cafe"
               required
             />
           </label>
 
-          <label className="label">
+          <label
+            className="label"
+            style={{
+              position: "relative",
+              overflow: "visible",
+              zIndex: cityDropdownOpen ? 500 : 1,
+            }}
+          >
             Location
             <input
               className="input"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Example: Trichy, Tamil Nadu"
+              onFocus={() => setCityDropdownOpen(true)}
+              onClick={() => setCityDropdownOpen(true)}
+              onChange={(event) => {
+                setLocation(event.target.value);
+                setCityDropdownOpen(true);
+              }}
+              onBlur={() => {
+                setTimeout(() => {
+                  setLocation((prev) => cleanCityName(prev));
+                  setCityDropdownOpen(false);
+                }, 180);
+              }}
+              placeholder="Search or select city"
               required
             />
+
+            {cityDropdownOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "74px",
+                  left: 0,
+                  right: 0,
+                  zIndex: 9999,
+                  maxHeight: "240px",
+                  overflowY: "auto",
+                  border: "1px solid var(--line-warm)",
+                  borderRadius: "16px",
+                  background: "#ffffff",
+                  boxShadow: "0 24px 60px rgba(17, 24, 39, 0.18)",
+                  padding: "8px",
+                }}
+              >
+                {citySuggestions.length > 0 ? (
+                  citySuggestions.map((city) => (
+                    <button
+                      type="button"
+                      key={city}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        selectCity(city);
+                      }}
+                      style={{
+                        width: "100%",
+                        display: "block",
+                        textAlign: "left",
+                        border: 0,
+                        background:
+                          city.toLowerCase() === location.trim().toLowerCase()
+                            ? "var(--brand-soft)"
+                            : "transparent",
+                        color: "var(--premium)",
+                        borderRadius: "12px",
+                        padding: "12px",
+                        fontWeight: 850,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: "14px",
+                      }}
+                    >
+                      {city}
+                    </button>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "12px",
+                      color: "var(--muted)",
+                      fontWeight: 750,
+                    }}
+                  >
+                    No city found. You can type manually.
+                  </div>
+                )}
+              </div>
+            )}
           </label>
 
           <label className="label">
@@ -215,7 +391,7 @@ export default function PostJobPage() {
             <input
               className="input"
               value={jobType}
-              onChange={(e) => setJobType(e.target.value)}
+              onChange={(event) => setJobType(event.target.value)}
               placeholder="Example: Part-time"
               required
             />
@@ -226,7 +402,7 @@ export default function PostJobPage() {
             <input
               className="input"
               value={duration}
-              onChange={(e) => setDuration(e.target.value)}
+              onChange={(event) => setDuration(event.target.value)}
               placeholder="Example: 5pm to 9pm"
             />
           </label>
@@ -237,8 +413,8 @@ export default function PostJobPage() {
               <select
                 className="select"
                 value={salaryType}
-                onChange={(e) =>
-                  setSalaryType(e.target.value as "hour" | "day" | "week" | "month")
+                onChange={(event) =>
+                  setSalaryType(event.target.value as SalaryType)
                 }
               >
                 <option value="hour">Per hour</option>
@@ -255,7 +431,9 @@ export default function PostJobPage() {
                 type="number"
                 min={1}
                 value={salaryAmount}
-                onChange={(e) => setSalaryAmount(Number(e.target.value))}
+                onChange={(event) =>
+                  setSalaryAmount(Number(event.target.value))
+                }
                 required
               />
             </label>
@@ -266,7 +444,7 @@ export default function PostJobPage() {
             <textarea
               className="textarea"
               value={requirements}
-              onChange={(e) => setRequirements(e.target.value)}
+              onChange={(event) => setRequirements(event.target.value)}
               placeholder="Example: Basic communication, punctuality, customer handling"
             />
           </label>
@@ -278,7 +456,7 @@ export default function PostJobPage() {
             <textarea
               className="textarea"
               value={responsibilities}
-              onChange={(e) => setResponsibilities(e.target.value)}
+              onChange={(event) => setResponsibilities(event.target.value)}
               placeholder="Example: Handle customers, take orders, maintain counter cleanliness, assist billing."
             />
           </label>
@@ -288,7 +466,7 @@ export default function PostJobPage() {
             <textarea
               className="textarea"
               value={whoCanApply}
-              onChange={(e) => setWhoCanApply(e.target.value)}
+              onChange={(event) => setWhoCanApply(event.target.value)}
               placeholder="Example: College students, freshers, people available in evening shift."
             />
           </label>
@@ -298,7 +476,7 @@ export default function PostJobPage() {
             <textarea
               className="textarea"
               value={benefits}
-              onChange={(e) => setBenefits(e.target.value)}
+              onChange={(event) => setBenefits(event.target.value)}
               placeholder="Example: Free snacks, flexible timing, certificate, performance bonus."
             />
           </label>
@@ -311,7 +489,7 @@ export default function PostJobPage() {
                 type="number"
                 min={1}
                 value={openings}
-                onChange={(e) => setOpenings(Number(e.target.value))}
+                onChange={(event) => setOpenings(Number(event.target.value))}
               />
             </label>
 
@@ -320,7 +498,7 @@ export default function PostJobPage() {
               <input
                 className="input"
                 value={workAddress}
-                onChange={(e) => setWorkAddress(e.target.value)}
+                onChange={(event) => setWorkAddress(event.target.value)}
                 placeholder="Example: Near Central Bus Stand, Trichy"
               />
             </label>
@@ -331,7 +509,7 @@ export default function PostJobPage() {
             <textarea
               className="textarea"
               value={contactNote}
-              onChange={(e) => setContactNote(e.target.value)}
+              onChange={(event) => setContactNote(event.target.value)}
               placeholder="Example: Shortlisted applicants will be contacted within 24 hours."
             />
           </label>
@@ -347,7 +525,7 @@ export default function PostJobPage() {
             <input
               type="checkbox"
               checked={isPremium}
-              onChange={(e) => setIsPremium(e.target.checked)}
+              onChange={(event) => setIsPremium(event.target.checked)}
             />
             Mark as premium listing
           </label>
@@ -357,7 +535,11 @@ export default function PostJobPage() {
           </button>
 
           {message && (
-            <div className={`notice ${message.includes("success") ? "success" : "error"}`}>
+            <div
+              className={`notice ${
+                message.includes("success") ? "success" : "error"
+              }`}
+            >
               {message}
             </div>
           )}
