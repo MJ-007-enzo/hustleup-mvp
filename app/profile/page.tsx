@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
+type SalaryPeriod = "hour" | "day" | "week" | "month";
+
 type UpgradedProfile = Profile & {
   location?: string | null;
   phone?: string | null;
@@ -26,13 +28,37 @@ const profileFields = [
   "experience",
 ] as const;
 
+const timeOptions = [
+  "6:00 AM",
+  "7:00 AM",
+  "8:00 AM",
+  "9:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+  "7:00 PM",
+  "8:00 PM",
+  "9:00 PM",
+  "10:00 PM",
+  "11:00 PM",
+];
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
+
   const [fullName, setFullName] = useState("");
   const [occupation, setOccupation] = useState("");
   const [skills, setSkills] = useState("");
-  const [availability, setAvailability] = useState("");
-  const [expectedSalary, setExpectedSalary] = useState("");
+  const [startTime, setStartTime] = useState("5:00 PM");
+  const [endTime, setEndTime] = useState("10:00 PM");
+  const [salaryAmount, setSalaryAmount] = useState(500);
+  const [salaryPeriod, setSalaryPeriod] = useState<SalaryPeriod>("day");
   const [location, setLocation] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
@@ -42,6 +68,12 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [availabilityMotion, setAvailabilityMotion] = useState(false);
+  const [salaryMotion, setSalaryMotion] = useState(false);
+
+  const availability = `${startTime} to ${endTime}`;
+  const expectedSalary = `₹${salaryAmount}/${salaryPeriod}`;
 
   useEffect(() => {
     loadProfile();
@@ -80,11 +112,66 @@ export default function ProfilePage() {
     profile?.email,
   ]);
 
+  function triggerAvailabilityMotion() {
+    setAvailabilityMotion(false);
+    setTimeout(() => setAvailabilityMotion(true), 10);
+    setTimeout(() => setAvailabilityMotion(false), 350);
+  }
+
+  function triggerSalaryMotion() {
+    setSalaryMotion(false);
+    setTimeout(() => setSalaryMotion(true), 10);
+    setTimeout(() => setSalaryMotion(false), 350);
+  }
+
   function completionLabel() {
     if (completion >= 90) return "Excellent";
     if (completion >= 70) return "Strong";
     if (completion >= 45) return "Average";
     return "Incomplete";
+  }
+
+  function parseAvailability(value?: string | null) {
+    if (!value) return;
+
+    const parts = value.split(/to/i).map((part) => part.trim());
+
+    if (parts[0]) {
+      const matchedStart = timeOptions.find(
+        (time) => time.toLowerCase() === parts[0].toLowerCase()
+      );
+
+      if (matchedStart) {
+        setStartTime(matchedStart);
+      }
+    }
+
+    if (parts[1]) {
+      const matchedEnd = timeOptions.find(
+        (time) => time.toLowerCase() === parts[1].toLowerCase()
+      );
+
+      if (matchedEnd) {
+        setEndTime(matchedEnd);
+      }
+    }
+  }
+
+  function parseExpectedSalary(value?: string | null) {
+    if (!value) return;
+
+    const amountMatch = value.match(/\d+/);
+
+    if (amountMatch) {
+      setSalaryAmount(Number(amountMatch[0]));
+    }
+
+    const lowerValue = value.toLowerCase();
+
+    if (lowerValue.includes("hour")) setSalaryPeriod("hour");
+    else if (lowerValue.includes("week")) setSalaryPeriod("week");
+    else if (lowerValue.includes("month")) setSalaryPeriod("month");
+    else setSalaryPeriod("day");
   }
 
   async function loadProfile() {
@@ -116,13 +203,14 @@ export default function ProfilePage() {
     setFullName(profileData.full_name || "");
     setOccupation(profileData.occupation || "");
     setSkills(profileData.skills || "");
-    setAvailability(profileData.availability || "");
-    setExpectedSalary(profileData.expected_salary || "");
     setLocation(profileData.location || "");
     setPhone(profileData.phone || "");
     setBio(profileData.bio || "");
     setExperience(profileData.experience || "");
     setPortfolioUrl(profileData.portfolio_url || "");
+
+    parseAvailability(profileData.availability);
+    parseExpectedSalary(profileData.expected_salary);
   }
 
   async function saveProfile(event: FormEvent) {
@@ -158,6 +246,18 @@ export default function ProfilePage() {
 
     setMessage("Profile updated successfully.");
     loadProfile();
+  }
+
+  function changeSalaryAmount(type: "increase" | "decrease") {
+    triggerSalaryMotion();
+
+    setSalaryAmount((prev) => {
+      if (type === "decrease") {
+        return Math.max(50, prev - 50);
+      }
+
+      return prev + 50;
+    });
   }
 
   if (loading) {
@@ -244,6 +344,16 @@ export default function ProfilePage() {
               <small>Location</small>
               <strong>{location || "Not added"}</strong>
             </div>
+
+            <div>
+              <small>Availability</small>
+              <strong>{availability}</strong>
+            </div>
+
+            <div>
+              <small>Expected salary</small>
+              <strong>{expectedSalary}</strong>
+            </div>
           </div>
 
           <div className="profile-preview-section">
@@ -257,8 +367,8 @@ export default function ProfilePage() {
           </div>
 
           <div className="profile-preview-section">
-            <h3>Availability</h3>
-            <p>{availability || "Add your available timing."}</p>
+            <h3>Experience</h3>
+            <p>{experience || "Add your previous experience or proof."}</p>
           </div>
         </aside>
 
@@ -339,25 +449,99 @@ export default function ProfilePage() {
             />
           </label>
 
-          <div className="grid grid-2">
+          <div className="profile-control-grid">
             <label className="label">
               Availability
-              <input
-                className="input"
-                value={availability}
-                onChange={(e) => setAvailability(e.target.value)}
-                placeholder="Example: 5pm to 9pm"
-              />
+              <div
+                className={`availability-picker ${
+                  availabilityMotion ? "profile-control-pop" : ""
+                }`}
+              >
+                <select
+                  className="select"
+                  value={startTime}
+                  onChange={(e) => {
+                    setStartTime(e.target.value);
+                    triggerAvailabilityMotion();
+                  }}
+                >
+                  {timeOptions.map((time) => (
+                    <option value={time} key={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
+
+                <span>to</span>
+
+                <select
+                  className="select"
+                  value={endTime}
+                  onChange={(e) => {
+                    setEndTime(e.target.value);
+                    triggerAvailabilityMotion();
+                  }}
+                >
+                  {timeOptions.map((time) => (
+                    <option value={time} key={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </label>
 
             <label className="label">
               Expected salary
-              <input
-                className="input"
-                value={expectedSalary}
-                onChange={(e) => setExpectedSalary(e.target.value)}
-                placeholder="Example: ₹500/day"
-              />
+              <div
+                className={`salary-picker ${
+                  salaryMotion ? "profile-control-pop" : ""
+                }`}
+              >
+                <span className="currency-chip">₹</span>
+
+                <button
+                  type="button"
+                  className="salary-stepper"
+                  onClick={() => changeSalaryAmount("decrease")}
+                >
+                  −
+                </button>
+
+                <input
+                  className="salary-input"
+                  type="number"
+                  min={50}
+                  step={50}
+                  value={salaryAmount}
+                  onChange={(e) => {
+                    setSalaryAmount(Number(e.target.value));
+                    triggerSalaryMotion();
+                  }}
+                />
+
+                <button
+                  type="button"
+                  className="salary-stepper"
+                  onClick={() => changeSalaryAmount("increase")}
+                >
+                  +
+                </button>
+
+                <select
+                  className="salary-period-select"
+                  value={salaryPeriod}
+                  onChange={(e) => {
+                    setSalaryPeriod(e.target.value as SalaryPeriod);
+                    triggerSalaryMotion();
+                  }}
+                >
+                  <option value="hour">/hour</option>
+                  <option value="day">/day</option>
+                  <option value="week">/week</option>
+                  <option value="month">/month</option>
+                </select>
+              </div>
             </label>
           </div>
 
