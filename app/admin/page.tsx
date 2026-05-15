@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile, Tier, WaitlistItem } from "@/lib/types";
@@ -12,6 +13,257 @@ type UpgradedProfile = Profile & {
   portfolio_url?: string | null;
   is_verified?: boolean | null;
 };
+
+const premiumCardStyle: CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
+  border: "1px solid rgba(255,90,31,0.14)",
+  background:
+    "radial-gradient(circle at 8% 8%, rgba(255,90,31,0.08), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+  boxShadow: "0 24px 60px rgba(17,24,39,0.08)",
+};
+
+const actionButtonStyle: CSSProperties = {
+  minHeight: 44,
+  borderRadius: 15,
+  padding: "0 16px",
+  fontWeight: 850,
+  fontSize: 14,
+  boxShadow: "0 12px 28px rgba(17,24,39,0.08)",
+};
+
+const secondaryButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+  border: "1px solid rgba(255,90,31,0.16)",
+  color: "var(--premium)",
+};
+
+const primaryButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  boxShadow:
+    "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
+};
+
+const dangerButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  background: "linear-gradient(180deg, #fff7f7, #fff1f1)",
+  border: "1px solid rgba(239,68,68,0.22)",
+  color: "#b91c1c",
+};
+
+function StatCard({
+  label,
+  value,
+  hint,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  hint: string;
+  icon: string;
+}) {
+  return (
+    <div
+      className="card"
+      style={{
+        ...premiumCardStyle,
+        borderRadius: 28,
+        padding: 24,
+        minHeight: 170,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: "0 0 auto 0",
+          height: 5,
+          background: "var(--brand-gradient)",
+        }}
+      />
+
+      <div
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 16,
+          display: "grid",
+          placeItems: "center",
+          background: "var(--brand-soft)",
+          color: "var(--brand-dark)",
+          fontWeight: 900,
+          fontSize: 18,
+          marginBottom: 16,
+        }}
+      >
+        {icon}
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          color: "var(--muted)",
+          fontWeight: 850,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          fontSize: 12,
+        }}
+      >
+        {label}
+      </p>
+
+      <div
+        className="stat"
+        style={{
+          marginTop: 8,
+          marginBottom: 8,
+          color: "var(--premium)",
+        }}
+      >
+        {value}
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          color: "var(--muted)",
+          fontWeight: 650,
+          lineHeight: 1.45,
+        }}
+      >
+        {hint}
+      </p>
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  variant = "neutral",
+}: {
+  children: ReactNode;
+  variant?: "neutral" | "success" | "danger" | "premium";
+}) {
+  const styles: Record<string, CSSProperties> = {
+    neutral: {
+      background: "rgba(255,90,31,0.09)",
+      color: "var(--brand-dark)",
+      border: "1px solid rgba(255,90,31,0.15)",
+    },
+    success: {
+      background: "rgba(16,185,129,0.11)",
+      color: "#047857",
+      border: "1px solid rgba(16,185,129,0.22)",
+    },
+    danger: {
+      background: "rgba(239,68,68,0.1)",
+      color: "#b91c1c",
+      border: "1px solid rgba(239,68,68,0.2)",
+    },
+    premium: {
+      background: "var(--brand-soft)",
+      color: "var(--brand-dark)",
+      border: "1px solid rgba(255,90,31,0.18)",
+    },
+  };
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        width: "fit-content",
+        alignItems: "center",
+        borderRadius: 999,
+        padding: "7px 11px",
+        fontSize: 12,
+        fontWeight: 850,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        ...styles[variant],
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className="card"
+      style={{
+        ...premiumCardStyle,
+        borderRadius: 30,
+        padding: 26,
+        marginTop: 24,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: "0 0 auto 0",
+          height: 5,
+          background: "var(--brand-gradient)",
+        }}
+      />
+
+      <div style={{ marginBottom: 18 }}>
+        <span className="tag">Admin section</span>
+
+        <h2 style={{ marginTop: 14, marginBottom: 8 }}>{title}</h2>
+
+        <p style={{ margin: 0 }}>{subtitle}</p>
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+function ScoreBar({ score }: { score: number }) {
+  return (
+    <div>
+      <strong
+        style={{
+          display: "block",
+          color: "var(--premium)",
+          marginBottom: 8,
+        }}
+      >
+        {score}%
+      </strong>
+
+      <div className="profile-score-bar">
+        <div style={{ width: `${score}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function TableWrap({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="table-wrap"
+      style={{
+        borderRadius: 24,
+        border: "1px solid rgba(255,90,31,0.12)",
+        background: "rgba(255,255,255,0.72)",
+        boxShadow: "0 14px 34px rgba(17,24,39,0.06)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
@@ -30,6 +282,10 @@ export default function AdminPage() {
     return users.filter((user) => user.is_verified).length;
   }, [users]);
 
+  const premiumUsers = useMemo(() => {
+    return users.filter((user) => user.tier === "premium").length;
+  }, [users]);
+
   function profileCompletion(user: UpgradedProfile) {
     const fields = [
       user.full_name,
@@ -44,7 +300,9 @@ export default function AdminPage() {
       user.experience,
     ];
 
-    const filled = fields.filter((field) => field && field.trim().length > 0).length;
+    const filled = fields.filter(
+      (field) => field && field.trim().length > 0
+    ).length;
 
     return Math.round((filled / fields.length) * 100);
   }
@@ -82,9 +340,17 @@ export default function AdminPage() {
 
     const [{ data: waitlistData }, { data: userData }, { data: jobData }] =
       await Promise.all([
-        supabase.from("waitlist").select("*").order("score", { ascending: false }),
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("jobs").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("waitlist")
+          .select("*")
+          .order("score", { ascending: false }),
+        supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("jobs").select("*").order("created_at", {
+          ascending: false,
+        }),
       ]);
 
     setWaitlist((waitlistData ?? []) as WaitlistItem[]);
@@ -94,7 +360,10 @@ export default function AdminPage() {
   }
 
   async function updateWaitlist(id: string, status: "approved" | "rejected") {
-    const { error } = await supabase.from("waitlist").update({ status }).eq("id", id);
+    const { error } = await supabase
+      .from("waitlist")
+      .update({ status })
+      .eq("id", id);
 
     if (error) {
       setMessage(error.message);
@@ -108,7 +377,10 @@ export default function AdminPage() {
   async function upgradeUser(id: string, tier: Tier) {
     setUpdatingUserId(id);
 
-    const { error } = await supabase.from("profiles").update({ tier }).eq("id", id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ tier })
+      .eq("id", id);
 
     setUpdatingUserId(null);
 
@@ -158,7 +430,9 @@ export default function AdminPage() {
       <main className="container">
         <span className="badge">Admin</span>
         <h1>Access blocked.</h1>
-        <p>Your current role is <strong>{profile?.role}</strong>.</p>
+        <p>
+          Your current role is <strong>{profile?.role}</strong>.
+        </p>
       </main>
     );
   }
@@ -170,40 +444,85 @@ export default function AdminPage() {
           <span className="badge">Admin Control</span>
           <h1>Run HustleUp.</h1>
           <p className="hero-copy">
-            Manage waitlist, users, tiers, verification status, jobs, and platform quality.
+            Manage waitlist, users, tiers, verification status, jobs, and
+            platform quality.
           </p>
         </div>
 
-        <div className="jobs-summary-card">
+        <div
+          className="jobs-summary-card"
+          style={{
+            ...premiumCardStyle,
+            borderRadius: 30,
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: "0 0 auto 0",
+              height: 5,
+              background: "var(--brand-gradient)",
+            }}
+          />
+
           <span className="tag">Verified users</span>
           <div className="stat">{verifiedUsers}</div>
           <p>trusted profiles marked by admin</p>
         </div>
       </section>
 
-      {message && <div className="notice">{message}</div>}
+      {message && <div className="notice success">{message}</div>}
 
       <section className="grid grid-3">
-        <div className="card">
-          <p>Waitlist</p>
-          <div className="stat">{waitlist.length}</div>
-        </div>
+        <StatCard
+          label="Waitlist"
+          value={waitlist.length}
+          hint="Users waiting for access approval."
+          icon="⏳"
+        />
 
-        <div className="card">
-          <p>Users</p>
-          <div className="stat">{users.length}</div>
-        </div>
+        <StatCard
+          label="Users"
+          value={users.length}
+          hint="All registered platform profiles."
+          icon="👥"
+        />
 
-        <div className="card">
-          <p>Jobs</p>
-          <div className="stat">{jobs.length}</div>
-        </div>
+        <StatCard
+          label="Jobs"
+          value={jobs.length}
+          hint="All jobs posted on HustleUp."
+          icon="💼"
+        />
+
+        <StatCard
+          label="Verified"
+          value={verifiedUsers}
+          hint="Profiles approved by admin."
+          icon="✓"
+        />
+
+        <StatCard
+          label="Premium"
+          value={premiumUsers}
+          hint="Users currently on premium tier."
+          icon="⭐"
+        />
+
+        <StatCard
+          label="Admin"
+          value={profile.full_name || "You"}
+          hint="Current admin account."
+          icon="⚙"
+        />
       </section>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Users & verification</h2>
-
-        <div className="table-wrap">
+      <SectionCard
+        title="Users & verification"
+        subtitle="Review users, upgrade tiers, and control verified badges."
+      >
+        <TableWrap>
           <table>
             <thead>
               <tr>
@@ -218,87 +537,99 @@ export default function AdminPage() {
             </thead>
 
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <strong>{user.full_name || "Unnamed user"}</strong>
-                    <br />
-                    <span>{user.email}</span>
-                  </td>
+              {users.map((user) => {
+                const completion = profileCompletion(user);
 
-                  <td>{user.role}</td>
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <strong>{user.full_name || "Unnamed user"}</strong>
+                      <br />
+                      <span>{user.email}</span>
+                    </td>
 
-                  <td>{user.tier}</td>
+                    <td>
+                      <Pill>{user.role}</Pill>
+                    </td>
 
-                  <td>
-                    <div className="admin-profile-score">
-                      <strong>{profileCompletion(user)}%</strong>
-                      <div className="profile-score-bar">
-                        <div style={{ width: `${profileCompletion(user)}%` }} />
+                    <td>
+                      <Pill variant={user.tier === "premium" ? "premium" : "neutral"}>
+                        {user.tier}
+                      </Pill>
+                    </td>
+
+                    <td>
+                      <ScoreBar score={completion} />
+                    </td>
+
+                    <td>
+                      {user.is_verified ? (
+                        <Pill variant="success">Verified</Pill>
+                      ) : (
+                        <Pill variant="danger">Not verified</Pill>
+                      )}
+                    </td>
+
+                    <td>
+                      <div className="admin-action-row">
+                        <button
+                          className="btn"
+                          style={secondaryButtonStyle}
+                          onClick={() => upgradeUser(user.id, "basic")}
+                          disabled={updatingUserId === user.id}
+                        >
+                          Basic
+                        </button>
+
+                        <button
+                          className="btn"
+                          style={secondaryButtonStyle}
+                          onClick={() => upgradeUser(user.id, "premium")}
+                          disabled={updatingUserId === user.id}
+                        >
+                          Premium
+                        </button>
+
+                        <button
+                          className="btn"
+                          style={secondaryButtonStyle}
+                          onClick={() => upgradeUser(user.id, "advanced")}
+                          disabled={updatingUserId === user.id}
+                        >
+                          Advanced
+                        </button>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  <td>
-                    {user.is_verified ? (
-                      <span className="verified-badge">Verified</span>
-                    ) : (
-                      <span className="unverified-badge">Not verified</span>
-                    )}
-                  </td>
-
-                  <td>
-                    <div className="admin-action-row">
+                    <td>
                       <button
-                        className="btn"
-                        onClick={() => upgradeUser(user.id, "basic")}
+                        className={user.is_verified ? "btn" : "btn btn-primary"}
+                        style={
+                          user.is_verified ? dangerButtonStyle : primaryButtonStyle
+                        }
+                        onClick={() => toggleVerified(user)}
                         disabled={updatingUserId === user.id}
                       >
-                        Basic
+                        {updatingUserId === user.id
+                          ? "Updating..."
+                          : user.is_verified
+                            ? "Unverify"
+                            : "Verify"}
                       </button>
-
-                      <button
-                        className="btn"
-                        onClick={() => upgradeUser(user.id, "premium")}
-                        disabled={updatingUserId === user.id}
-                      >
-                        Premium
-                      </button>
-
-                      <button
-                        className="btn"
-                        onClick={() => upgradeUser(user.id, "advanced")}
-                        disabled={updatingUserId === user.id}
-                      >
-                        Advanced
-                      </button>
-                    </div>
-                  </td>
-
-                  <td>
-                    <button
-                      className={user.is_verified ? "btn danger-btn" : "btn btn-primary"}
-                      onClick={() => toggleVerified(user)}
-                      disabled={updatingUserId === user.id}
-                    >
-                      {updatingUserId === user.id
-                        ? "Updating..."
-                        : user.is_verified
-                        ? "Unverify"
-                        : "Verify"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
-      </section>
+        </TableWrap>
+      </SectionCard>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Waitlist</h2>
-
-        <div className="table-wrap">
+      <SectionCard
+        title="Waitlist"
+        subtitle="Approve strong users or reject low-quality entries."
+      >
+        <TableWrap>
           <table>
             <thead>
               <tr>
@@ -314,22 +645,42 @@ export default function AdminPage() {
             <tbody>
               {waitlist.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.full_name}</td>
+                  <td>
+                    <strong>{item.full_name}</strong>
+                  </td>
                   <td>{item.email}</td>
-                  <td>{item.role}</td>
-                  <td>{item.score}</td>
-                  <td>{item.status}</td>
+                  <td>
+                    <Pill>{item.role}</Pill>
+                  </td>
+                  <td>
+                    <strong>{item.score}</strong>
+                  </td>
+                  <td>
+                    <Pill
+                      variant={
+                        item.status === "approved"
+                          ? "success"
+                          : item.status === "rejected"
+                            ? "danger"
+                            : "neutral"
+                      }
+                    >
+                      {item.status}
+                    </Pill>
+                  </td>
                   <td>
                     <div className="admin-action-row">
                       <button
                         className="btn"
+                        style={secondaryButtonStyle}
                         onClick={() => updateWaitlist(item.id, "approved")}
                       >
                         Approve
                       </button>
 
                       <button
-                        className="btn danger-btn"
+                        className="btn"
+                        style={dangerButtonStyle}
                         onClick={() => updateWaitlist(item.id, "rejected")}
                       >
                         Reject
@@ -340,13 +691,14 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      </section>
+        </TableWrap>
+      </SectionCard>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Jobs</h2>
-
-        <div className="table-wrap">
+      <SectionCard
+        title="Jobs"
+        subtitle="Inspect active platform listings and salary data."
+      >
+        <TableWrap>
           <table>
             <thead>
               <tr>
@@ -361,17 +713,29 @@ export default function AdminPage() {
             <tbody>
               {jobs.map((job) => (
                 <tr key={job.id}>
-                  <td>{job.title}</td>
+                  <td>
+                    <strong>{job.title}</strong>
+                  </td>
                   <td>{job.company_name}</td>
                   <td>{job.location}</td>
-                  <td>₹{job.salary_amount}/{job.salary_type}</td>
-                  <td>{job.status}</td>
+                  <td>
+                    <strong>
+                      ₹{job.salary_amount}/{job.salary_type}
+                    </strong>
+                  </td>
+                  <td>
+                    <Pill
+                      variant={job.status === "open" ? "success" : "neutral"}
+                    >
+                      {job.status}
+                    </Pill>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      </section>
+        </TableWrap>
+      </SectionCard>
     </main>
   );
 }
