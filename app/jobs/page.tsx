@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import type { Job } from "@/lib/types";
+import type { Job, Profile } from "@/lib/types";
 
 type JobWithDetails = Job & {
   responsibilities?: string | null;
@@ -77,6 +78,7 @@ function formatSalaryPeriod(period: string) {
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [message, setMessage] = useState("");
   const [applicationMessage, setApplicationMessage] = useState("");
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
@@ -149,7 +151,7 @@ export default function JobsPage() {
 
   useEffect(() => {
     loadJobs();
-    loadAppliedJobs();
+    loadViewer();
   }, []);
 
   useEffect(() => {
@@ -217,6 +219,35 @@ export default function JobsPage() {
     premiumFilter,
   ]);
 
+  const viewerTier = profile?.tier || "beginner";
+  const hasPremiumAccess =
+    viewerTier === "premium" || viewerTier === "advanced";
+  const hasBasicPreviewAccess = viewerTier === "basic";
+
+  function canViewJobDetails(job: JobWithDetails) {
+    if (!job.is_premium) return true;
+    return hasPremiumAccess || hasBasicPreviewAccess;
+  }
+
+  function canApplyToJob(job: JobWithDetails) {
+    if (!job.is_premium) return true;
+    return hasPremiumAccess;
+  }
+
+  function premiumLockText(job: JobWithDetails) {
+    if (!job.is_premium) return "";
+
+    if (hasPremiumAccess) {
+      return "Premium unlocked";
+    }
+
+    if (hasBasicPreviewAccess) {
+      return "Basic preview: upgrade to Premium to apply.";
+    }
+
+    return "Premium listing: upgrade to view details and apply.";
+  }
+
   function selectedLabel(options: DropdownOption[], value: string) {
     return options.find((option) => option.value === value)?.label || value;
   }
@@ -246,34 +277,52 @@ export default function JobsPage() {
     setJobs((data ?? []) as JobWithDetails[]);
   }
 
-  async function loadAppliedJobs() {
+  async function loadViewer() {
     const { data: authData } = await supabase.auth.getUser();
 
     if (!authData.user) {
+      setProfile(null);
       setAppliedJobIds(new Set());
       return;
     }
 
-    const { data, error } = await supabase
-      .from("applications")
-      .select("job_id")
-      .eq("seeker_id", authData.user.id);
+    const [{ data: profileData }, { data: applicationData }] =
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authData.user.id)
+          .single(),
+        supabase
+          .from("applications")
+          .select("job_id")
+          .eq("seeker_id", authData.user.id),
+      ]);
 
-    if (error) {
+    setProfile((profileData as Profile) ?? null);
+
+    setAppliedJobIds(
+      new Set((applicationData ?? []).map((item) => item.job_id))
+    );
+  }
+
+  async function apply(job: JobWithDetails) {
+    if (!canApplyToJob(job)) {
+      setApplicationMessage(
+        job.is_premium
+          ? "Premium applications require the Premium plan."
+          : "You cannot apply to this job right now."
+      );
       return;
     }
 
-    setAppliedJobIds(new Set((data ?? []).map((item) => item.job_id)));
-  }
-
-  async function apply(jobId: string) {
-    if (appliedJobIds.has(jobId)) {
+    if (appliedJobIds.has(job.id)) {
       setApplicationMessage("You already applied for this job.");
       return;
     }
 
     setApplicationMessage("");
-    setApplyingJobId(jobId);
+    setApplyingJobId(job.id);
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -283,7 +332,7 @@ export default function JobsPage() {
     }
 
     const { error } = await supabase.from("applications").insert({
-      job_id: jobId,
+      job_id: job.id,
       seeker_id: authData.user.id,
       message: "I am interested in this opportunity.",
       status: "applied",
@@ -295,7 +344,7 @@ export default function JobsPage() {
       if (error.message.includes("duplicate")) {
         setAppliedJobIds((prev) => {
           const next = new Set(prev);
-          next.add(jobId);
+          next.add(job.id);
           return next;
         });
 
@@ -309,7 +358,7 @@ export default function JobsPage() {
 
     setAppliedJobIds((prev) => {
       const next = new Set(prev);
-      next.add(jobId);
+      next.add(job.id);
       return next;
     });
 
@@ -325,6 +374,50 @@ export default function JobsPage() {
     return value && value.trim().length > 0
       ? value
       : "Not added by the job owner.";
+  }
+
+  function renderDetailsButton(job: JobWithDetails) {
+    if (canViewJobDetails(job)) {
+      return (
+        <button className="btn" onClick={() => setSelectedJob(job)}>
+          View details
+        </button>
+      );
+    }
+
+    return (
+      <Link className="btn" href="/pricing">
+        Unlock details
+      </Link>
+    );
+  }
+
+  function renderApplyButton(job: JobWithDetails, modal = false) {
+    if (!canApplyToJob(job)) {
+      return (
+        <Link className="btn btn-primary" href="/pricing">
+          {job.is_premium && hasBasicPreviewAccess
+            ? "Upgrade to Premium"
+            : "Unlock premium"}
+        </Link>
+      );
+    }
+
+    return (
+      <button
+        className="btn btn-primary"
+        onClick={() => apply(job)}
+        disabled={applyingJobId === job.id || appliedJobIds.has(job.id)}
+      >
+        {appliedJobIds.has(job.id)
+          ? "Applied"
+          : applyingJobId === job.id
+            ? "Applying..."
+            : modal
+              ? "Apply for this job"
+              : "Apply now"}
+      </button>
+    );
   }
 
   function FilterDropdown({
@@ -507,6 +600,23 @@ export default function JobsPage() {
         </div>
       </section>
 
+      {profile && (
+        <div className="notice" style={{ marginBottom: 14 }}>
+          Current access: <strong>{viewerTier}</strong>
+          {viewerTier === "beginner" &&
+            " · Premium listings are visible but locked."}
+          {viewerTier === "basic" &&
+            " · Premium details are unlocked, but Premium applications need Premium."}
+          {hasPremiumAccess && " · Premium listings are fully unlocked."}
+        </div>
+      )}
+
+      {!profile && (
+        <div className="notice" style={{ marginBottom: 14 }}>
+          You can browse jobs now. Login to apply and unlock plan-based access.
+        </div>
+      )}
+
       {message && <div className="notice error">{message}</div>}
 
       {applicationMessage && (
@@ -655,26 +765,28 @@ export default function JobsPage() {
               </div>
             </div>
 
+            {job.is_premium && !hasPremiumAccess && (
+              <div
+                className="notice"
+                style={{
+                  marginTop: 14,
+                  marginBottom: 14,
+                  fontSize: 13,
+                  fontWeight: 750,
+                }}
+              >
+                {premiumLockText(job)}
+              </div>
+            )}
+
             <p className="job-requirements">
-              {job.requirements || "Tap View details to see full job information."}
+              {job.requirements ||
+                "Tap View details to see full job information."}
             </p>
 
             <div className="job-card-actions">
-              <button className="btn" onClick={() => setSelectedJob(job)}>
-                View details
-              </button>
-
-              <button
-                className="btn btn-primary"
-                onClick={() => apply(job.id)}
-                disabled={applyingJobId === job.id || appliedJobIds.has(job.id)}
-              >
-                {appliedJobIds.has(job.id)
-                  ? "Applied"
-                  : applyingJobId === job.id
-                    ? "Applying..."
-                    : "Apply now"}
-              </button>
+              {renderDetailsButton(job)}
+              {renderApplyButton(job)}
             </div>
           </article>
         ))}
@@ -711,8 +823,23 @@ export default function JobsPage() {
             <h2>{selectedJob.title}</h2>
 
             <p className="job-modal-company">
-              <strong>{selectedJob.company_name}</strong> · {selectedJob.location}
+              <strong>{selectedJob.company_name}</strong> ·{" "}
+              {selectedJob.location}
             </p>
+
+            {selectedJob.is_premium && !hasPremiumAccess && (
+              <div
+                className="notice"
+                style={{
+                  marginBottom: 18,
+                  fontWeight: 750,
+                }}
+              >
+                {hasBasicPreviewAccess
+                  ? "Basic preview unlocked. Upgrade to Premium to apply for this listing."
+                  : "This is a Premium listing. Upgrade to unlock full access."}
+              </div>
+            )}
 
             <div className="job-modal-grid">
               <div>
@@ -737,7 +864,9 @@ export default function JobsPage() {
 
               <div>
                 <small>Area</small>
-                <strong>{selectedJob.work_address || selectedJob.location}</strong>
+                <strong>
+                  {selectedJob.work_address || selectedJob.location}
+                </strong>
               </div>
 
               <div>
@@ -781,20 +910,7 @@ export default function JobsPage() {
                 Close
               </button>
 
-              <button
-                className="btn btn-primary"
-                onClick={() => apply(selectedJob.id)}
-                disabled={
-                  applyingJobId === selectedJob.id ||
-                  appliedJobIds.has(selectedJob.id)
-                }
-              >
-                {appliedJobIds.has(selectedJob.id)
-                  ? "Applied"
-                  : applyingJobId === selectedJob.id
-                    ? "Applying..."
-                    : "Apply for this job"}
-              </button>
+              {renderApplyButton(selectedJob, true)}
             </div>
           </div>
         </div>
