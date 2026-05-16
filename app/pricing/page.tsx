@@ -314,8 +314,8 @@ export default function PricingPage() {
       <h1>Choose your HustleUp plan.</h1>
 
       <p className="hero-copy">
-        Start free. Upgrade when you want better visibility, premium job access,
-        and stronger profile positioning.
+        Start free. Upgrade when you want more access, better visibility, and
+        stronger positioning in front of job owners.
       </p>
 
       {message && (
@@ -341,12 +341,13 @@ export default function PricingPage() {
         <div className="card">
           <span className="tag">Beginner</span>
           <div className="price">Free</div>
-          <p>For new job seekers testing HustleUp.</p>
+          <p>For new users who want to enter HustleUp and start applying.</p>
 
-          <BenefitItem>Create profile</BenefitItem>
-          <BenefitItem>Browse jobs</BenefitItem>
-          <BenefitItem>Limited applications</BenefitItem>
-          <BenefitItem>Basic visibility</BenefitItem>
+          <BenefitItem>Create your HustleUp profile</BenefitItem>
+          <BenefitItem>Browse regular job listings</BenefitItem>
+          <BenefitItem>Apply to starter opportunities</BenefitItem>
+          <BenefitItem>Track application status</BenefitItem>
+          <BenefitItem>Standard profile visibility</BenefitItem>
 
           <div style={{ marginTop: 26 }}>
             {planButton("beginner", "Choose Beginner")}
@@ -356,12 +357,14 @@ export default function PricingPage() {
         <div className="card">
           <span className="tag">Basic</span>
           <div className="price">₹99</div>
-          <p>For active users who want better opportunities.</p>
+          <p>For active users who want better access and stronger visibility.</p>
 
-          <BenefitItem>More job access</BenefitItem>
+          <BenefitItem>Everything in Beginner</BenefitItem>
+          <BenefitItem>More application access</BenefitItem>
           <BenefitItem>Better profile visibility</BenefitItem>
-          <BenefitItem>Application tracking</BenefitItem>
-          <BenefitItem>Basic badge</BenefitItem>
+          <BenefitItem>Saved job access</BenefitItem>
+          <BenefitItem>Basic member badge</BenefitItem>
+          <BenefitItem>Faster application tracking</BenefitItem>
 
           <div style={{ marginTop: 26 }}>{planButton("basic", "Pay ₹99")}</div>
         </div>
@@ -369,12 +372,14 @@ export default function PricingPage() {
         <div className="card pricing-card-premium">
           <span className="premium-badge">Premium</span>
           <div className="price">₹299</div>
-          <p>For serious job seekers who want priority positioning.</p>
+          <p>For serious job seekers who want priority and premium positioning.</p>
 
-          <BenefitItem>Premium badge</BenefitItem>
-          <BenefitItem>Priority job access</BenefitItem>
-          <BenefitItem>Stronger profile ranking</BenefitItem>
-          <BenefitItem>Future certification access</BenefitItem>
+          <BenefitItem>Everything in Basic</BenefitItem>
+          <BenefitItem>Premium profile badge</BenefitItem>
+          <BenefitItem>Priority visibility to job owners</BenefitItem>
+          <BenefitItem>Early access to selected jobs</BenefitItem>
+          <BenefitItem>Higher applicant ranking</BenefitItem>
+          <BenefitItem>Certification priority access</BenefitItem>
 
           <div style={{ marginTop: 26 }}>
             {planButton("premium", "Pay ₹299")}
