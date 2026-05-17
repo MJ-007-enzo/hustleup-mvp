@@ -144,7 +144,13 @@ function ActionLink({
   );
 }
 
-function GuideItem({ children }: { children: ReactNode }) {
+function GuideItem({
+  children,
+  locked = false,
+}: {
+  children: ReactNode;
+  locked?: boolean;
+}) {
   return (
     <div
       style={{
@@ -153,8 +159,12 @@ function GuideItem({ children }: { children: ReactNode }) {
         gap: 10,
         padding: "12px 13px",
         borderRadius: 16,
-        background: "rgba(255,255,255,0.78)",
-        border: "1px solid rgba(255,90,31,0.12)",
+        background: locked
+          ? "linear-gradient(180deg, #fff7f7, #fff1f1)"
+          : "rgba(255,255,255,0.78)",
+        border: locked
+          ? "1px solid rgba(239,68,68,0.18)"
+          : "1px solid rgba(255,90,31,0.12)",
         boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
       }}
     >
@@ -165,19 +175,19 @@ function GuideItem({ children }: { children: ReactNode }) {
           borderRadius: 999,
           display: "grid",
           placeItems: "center",
-          background: "var(--brand-soft)",
-          color: "var(--brand-dark)",
+          background: locked ? "#fee2e2" : "var(--brand-soft)",
+          color: locked ? "#b91c1c" : "var(--brand-dark)",
           fontWeight: 850,
           flexShrink: 0,
           fontSize: 13,
         }}
       >
-        ✓
+        {locked ? "!" : "✓"}
       </span>
 
       <span
         style={{
-          color: "var(--muted)",
+          color: locked ? "#b91c1c" : "var(--muted)",
           fontWeight: 750,
           fontSize: 15,
           lineHeight: 1.35,
@@ -186,6 +196,106 @@ function GuideItem({ children }: { children: ReactNode }) {
         {children}
       </span>
     </div>
+  );
+}
+
+function planTitle(tier?: string | null) {
+  if (tier === "basic") return "Basic access";
+  if (tier === "premium") return "Premium access";
+  if (tier === "advanced") return "Advanced access";
+  return "Beginner access";
+}
+
+function planDescription(tier?: string | null) {
+  if (tier === "basic") {
+    return "You can view Premium job details, but Premium applications are still locked.";
+  }
+
+  if (tier === "premium") {
+    return "You have full Premium job access, including Premium applications.";
+  }
+
+  if (tier === "advanced") {
+    return "You have admin-controlled rare access with maximum visibility and future priority benefits.";
+  }
+
+  return "You can apply to regular jobs. Premium listings are visible but locked.";
+}
+
+function PlanAccessCard({ profile }: { profile: Profile }) {
+  const tier = profile.tier || "beginner";
+  const isBeginner = tier === "beginner";
+  const isBasic = tier === "basic";
+  const isPremium = tier === "premium";
+  const isAdvanced = tier === "advanced";
+
+  return (
+    <section
+      className="card"
+      style={{
+        ...premiumCardStyle,
+        borderRadius: 30,
+        padding: 28,
+        marginTop: 24,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: "0 0 auto 0",
+          height: 5,
+          background: isPremium || isAdvanced
+            ? "var(--brand-gradient)"
+            : "rgba(255,90,31,0.18)",
+        }}
+      />
+
+      <span className={isPremium || isAdvanced ? "premium-badge" : "tag"}>
+        {tier}
+      </span>
+
+      <h2 style={{ marginTop: 16 }}>{planTitle(tier)}</h2>
+
+      <p>{planDescription(tier)}</p>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 10,
+          marginTop: 18,
+        }}
+      >
+        <GuideItem>Regular jobs unlocked</GuideItem>
+
+        <GuideItem locked={isBeginner}>
+          Premium job details {isBeginner ? "locked" : "unlocked"}
+        </GuideItem>
+
+        <GuideItem locked={isBeginner || isBasic}>
+          Premium job applications{" "}
+          {isPremium || isAdvanced ? "unlocked" : "locked"}
+        </GuideItem>
+
+        <GuideItem locked={isBeginner}>
+          Profile visibility{" "}
+          {isPremium || isAdvanced
+            ? "priority level"
+            : isBasic
+              ? "improved level"
+              : "standard level"}
+        </GuideItem>
+      </div>
+
+      {(isBeginner || isBasic) && (
+        <div className="actions">
+          <ActionLink primary href="/pricing">
+            Upgrade plan
+          </ActionLink>
+
+          <ActionLink href="/jobs">Browse jobs</ActionLink>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -361,9 +471,11 @@ export default function DashboardPage() {
 
       {message && <div className="notice error">{message}</div>}
 
+      {profile && <PlanAccessCard profile={profile} />}
+
       {profile?.role === "admin" && (
         <>
-          <section className="grid grid-3">
+          <section className="grid grid-3" style={{ marginTop: 24 }}>
             <StatCard
               label="Total users"
               value={userCount}
@@ -440,7 +552,7 @@ export default function DashboardPage() {
 
       {profile?.role === "job_owner" && (
         <>
-          <section className="grid grid-3">
+          <section className="grid grid-3" style={{ marginTop: 24 }}>
             <StatCard
               label="Jobs posted"
               value={jobCount}
@@ -496,7 +608,7 @@ export default function DashboardPage() {
 
       {profile?.role === "job_seeker" && (
         <>
-          <section className="grid grid-3">
+          <section className="grid grid-3" style={{ marginTop: 24 }}>
             <StatCard
               label="Applications sent"
               value={applicationCount}
