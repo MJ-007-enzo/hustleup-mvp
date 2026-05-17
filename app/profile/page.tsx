@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
@@ -447,6 +448,8 @@ export default function ProfilePage() {
   const availability = `${startTime} to ${endTime}`;
   const expectedSalary = `₹${salaryText || "50"}/${salaryPeriod}`;
 
+  const toastType = message.includes("successfully") ? "success" : "error";
+
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
 
@@ -869,6 +872,12 @@ export default function ProfilePage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={toastType}
+        onClose={() => setMessage("")}
+      />
+
       <section className="profile-hero">
         <div>
           <span className="badge">Profile</span>
@@ -895,16 +904,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
-
-      {message && (
-        <div
-          className={`notice ${
-            message.includes("successfully") ? "success" : "error"
-          }`}
-        >
-          {message}
-        </div>
-      )}
 
       <section className="grid grid-2 profile-layout">
         <aside

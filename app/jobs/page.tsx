@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
 
@@ -113,6 +114,15 @@ export default function JobsPage() {
   const [openDropdown, setOpenDropdown] = useState<FilterKey | null>(null);
 
   const locations = tamilNaduCities;
+
+  const toastMessage = applicationMessage || message;
+
+  const toastType =
+    toastMessage.includes("successfully") ||
+    toastMessage.includes("unlocked") ||
+    toastMessage.includes("updated")
+      ? "success"
+      : "error";
 
   const jobTypes = useMemo(() => {
     const values = jobs
@@ -654,6 +664,15 @@ export default function JobsPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        onClose={() => {
+          setMessage("");
+          setApplicationMessage("");
+        }}
+      />
+
       <section className="jobs-hero">
         <div>
           <span className="badge">Open opportunities</span>
@@ -689,18 +708,6 @@ export default function JobsPage() {
       {!profile && (
         <div className="notice" style={{ marginBottom: 14 }}>
           You can browse jobs now. Login to apply and unlock plan-based access.
-        </div>
-      )}
-
-      {message && <div className="notice error">{message}</div>}
-
-      {applicationMessage && (
-        <div
-          className={`notice ${
-            applicationMessage.includes("successfully") ? "success" : "error"
-          }`}
-        >
-          {applicationMessage}
         </div>
       )}
 

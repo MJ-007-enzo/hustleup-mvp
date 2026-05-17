@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
@@ -217,6 +218,7 @@ export default function PostJobPage() {
 
   const duration = `${startTime} to ${endTime}`;
   const salaryAmount = getNumber(salaryText);
+  const toastType = message.includes("successfully") ? "success" : "error";
 
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -575,6 +577,12 @@ export default function PostJobPage() {
   if (profile?.role !== "job_owner" && profile?.role !== "admin") {
     return (
       <main className="container">
+        <Toast
+          message={message}
+          type={toastType}
+          onClose={() => setMessage("")}
+        />
+
         <span className="badge">Access blocked</span>
         <h1>You cannot post jobs.</h1>
 
@@ -598,6 +606,12 @@ export default function PostJobPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={toastType}
+        onClose={() => setMessage("")}
+      />
+
       <section className="grid grid-2">
         <div>
           <span className="badge">For job owners</span>
@@ -1103,16 +1117,6 @@ export default function PostJobPage() {
           <button className="btn btn-primary" disabled={busy}>
             {busy ? "Posting..." : "Post job"}
           </button>
-
-          {message && (
-            <div
-              className={`notice ${
-                message.includes("success") ? "success" : "error"
-              }`}
-            >
-              {message}
-            </div>
-          )}
         </form>
       </section>
     </main>

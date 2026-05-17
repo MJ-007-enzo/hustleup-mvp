@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, Tier } from "@/lib/types";
 
@@ -310,25 +311,23 @@ export default function PricingPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={
+          message.includes("successful") || message.includes("updated")
+            ? "success"
+            : "error"
+        }
+        onClose={() => setMessage("")}
+      />
+
       <span className="badge">Pricing</span>
       <h1>Choose your HustleUp plan.</h1>
 
       <p className="hero-copy">
-        Start free. Upgrade when you want more access, better visibility, and
-        stronger positioning in front of job owners.
+        Start free. Upgrade when you want more applications, better visibility,
+        Premium access, and stronger positioning in front of job owners.
       </p>
-
-      {message && (
-        <div
-          className={`notice ${
-            message.includes("successful") || message.includes("updated")
-              ? "success"
-              : "error"
-          }`}
-        >
-          {message}
-        </div>
-      )}
 
       {profile && (
         <div className="notice">
@@ -345,7 +344,7 @@ export default function PricingPage() {
 
           <BenefitItem>Create your HustleUp profile</BenefitItem>
           <BenefitItem>Browse regular job listings</BenefitItem>
-          <BenefitItem>Apply to starter opportunities</BenefitItem>
+          <BenefitItem>5 applications per month</BenefitItem>
           <BenefitItem>Track application status</BenefitItem>
           <BenefitItem>Standard profile visibility</BenefitItem>
 
@@ -357,12 +356,12 @@ export default function PricingPage() {
         <div className="card">
           <span className="tag">Basic</span>
           <div className="price">₹99</div>
-          <p>For active users who want better access and stronger visibility.</p>
+          <p>For active users who want more applications and better access.</p>
 
           <BenefitItem>Everything in Beginner</BenefitItem>
-          <BenefitItem>More application access</BenefitItem>
+          <BenefitItem>12 applications per month</BenefitItem>
+          <BenefitItem>Premium job details preview</BenefitItem>
           <BenefitItem>Better profile visibility</BenefitItem>
-          <BenefitItem>Saved job access</BenefitItem>
           <BenefitItem>Basic member badge</BenefitItem>
           <BenefitItem>Faster application tracking</BenefitItem>
 
@@ -372,12 +371,12 @@ export default function PricingPage() {
         <div className="card pricing-card-premium">
           <span className="premium-badge">Premium</span>
           <div className="price">₹299</div>
-          <p>For serious job seekers who want priority and premium positioning.</p>
+          <p>For serious job seekers who want unlimited access and priority.</p>
 
           <BenefitItem>Everything in Basic</BenefitItem>
-          <BenefitItem>Premium profile badge</BenefitItem>
+          <BenefitItem>Unlimited applications</BenefitItem>
+          <BenefitItem>Premium job applications unlocked</BenefitItem>
           <BenefitItem>Priority visibility to job owners</BenefitItem>
-          <BenefitItem>Early access to selected jobs</BenefitItem>
           <BenefitItem>Higher applicant ranking</BenefitItem>
           <BenefitItem>Certification priority access</BenefitItem>
 

@@ -39,6 +39,53 @@ const primaryButtonStyle: CSSProperties = {
     "0 18px 40px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
 };
 
+function getCurrentMonthStartISO() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  return monthStart.toISOString();
+}
+
+function applicationLimitForTier(tier?: string | null) {
+  if (tier === "premium" || tier === "advanced") {
+    return null;
+  }
+
+  if (tier === "basic") {
+    return 12;
+  }
+
+  return 5;
+}
+
+function applicationUsageText(tier: string | null | undefined, count: number) {
+  const limit = applicationLimitForTier(tier);
+
+  if (limit === null) {
+    return "Unlimited";
+  }
+
+  return `${count}/${limit}`;
+}
+
+function applicationsRemainingText(
+  tier: string | null | undefined,
+  count: number
+) {
+  const limit = applicationLimitForTier(tier);
+
+  if (limit === null) {
+    return "Unlimited applications available this month.";
+  }
+
+  const remaining = Math.max(0, limit - count);
+
+  if (remaining === 0) {
+    return "Monthly application limit reached. Upgrade to apply more.";
+  }
+
+  return `${remaining} application${remaining === 1 ? "" : "s"} remaining this month.`;
+}
+
 function StatCard({
   label,
   value,
@@ -105,6 +152,7 @@ function StatCard({
           marginTop: 8,
           marginBottom: 8,
           color: "var(--premium)",
+          overflowWrap: "anywhere",
         }}
       >
         {value}
@@ -208,26 +256,36 @@ function planTitle(tier?: string | null) {
 
 function planDescription(tier?: string | null) {
   if (tier === "basic") {
-    return "You can view Premium job details, but Premium applications are still locked.";
+    return "You get 12 applications per month and can view Premium job details, but Premium applications are still locked.";
   }
 
   if (tier === "premium") {
-    return "You have full Premium job access, including Premium applications.";
+    return "You have unlimited applications and full Premium job access.";
   }
 
   if (tier === "advanced") {
-    return "You have admin-controlled rare access with maximum visibility and future priority benefits.";
+    return "You have admin-controlled rare access with unlimited applications, maximum visibility, and future priority benefits.";
   }
 
-  return "You can apply to regular jobs. Premium listings are visible but locked.";
+  return "You get 5 applications per month. Premium listings are visible but locked.";
 }
 
-function PlanAccessCard({ profile }: { profile: Profile }) {
+function PlanAccessCard({
+  profile,
+  monthlyApplicationCount,
+}: {
+  profile: Profile;
+  monthlyApplicationCount: number;
+}) {
   const tier = profile.tier || "beginner";
   const isBeginner = tier === "beginner";
   const isBasic = tier === "basic";
   const isPremium = tier === "premium";
   const isAdvanced = tier === "advanced";
+
+  const monthlyLimit = applicationLimitForTier(tier);
+  const isLimitReached =
+    monthlyLimit !== null && monthlyApplicationCount >= monthlyLimit;
 
   return (
     <section
@@ -244,9 +302,10 @@ function PlanAccessCard({ profile }: { profile: Profile }) {
           position: "absolute",
           inset: "0 0 auto 0",
           height: 5,
-          background: isPremium || isAdvanced
-            ? "var(--brand-gradient)"
-            : "rgba(255,90,31,0.18)",
+          background:
+            isPremium || isAdvanced
+              ? "var(--brand-gradient)"
+              : "rgba(255,90,31,0.18)",
         }}
       />
 
@@ -265,6 +324,15 @@ function PlanAccessCard({ profile }: { profile: Profile }) {
           marginTop: 18,
         }}
       >
+        <GuideItem>
+          Monthly applications:{" "}
+          {applicationUsageText(tier, monthlyApplicationCount)}
+        </GuideItem>
+
+        <GuideItem locked={isLimitReached}>
+          {applicationsRemainingText(tier, monthlyApplicationCount)}
+        </GuideItem>
+
         <GuideItem>Regular jobs unlocked</GuideItem>
 
         <GuideItem locked={isBeginner}>
@@ -286,7 +354,7 @@ function PlanAccessCard({ profile }: { profile: Profile }) {
         </GuideItem>
       </div>
 
-      {(isBeginner || isBasic) && (
+      {(isBeginner || isBasic || isLimitReached) && (
         <div className="actions">
           <ActionLink primary href="/pricing">
             Upgrade plan
@@ -303,6 +371,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [jobCount, setJobCount] = useState(0);
   const [applicationCount, setApplicationCount] = useState(0);
+  const [monthlyApplicationCount, setMonthlyApplicationCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -324,6 +393,7 @@ export default function DashboardPage() {
     }
 
     const userId = authData.user.id;
+    const monthStart = getCurrentMonthStartISO();
 
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
@@ -339,6 +409,14 @@ export default function DashboardPage() {
 
     const myProfile = profileData as Profile;
     setProfile(myProfile);
+
+    const { count: monthlyApps } = await supabase
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .eq("seeker_id", userId)
+      .gte("created_at", monthStart);
+
+    setMonthlyApplicationCount(monthlyApps ?? 0);
 
     if (myProfile.role === "admin") {
       const [
@@ -465,13 +543,24 @@ export default function DashboardPage() {
           >
             <GuideItem>{`Role: ${profile?.role || "user"}`}</GuideItem>
             <GuideItem>{`Plan: ${profile?.tier || "beginner"}`}</GuideItem>
+            <GuideItem>
+              {`Monthly applications: ${applicationUsageText(
+                profile?.tier,
+                monthlyApplicationCount
+              )}`}
+            </GuideItem>
           </div>
         </div>
       </section>
 
       {message && <div className="notice error">{message}</div>}
 
-      {profile && <PlanAccessCard profile={profile} />}
+      {profile && (
+        <PlanAccessCard
+          profile={profile}
+          monthlyApplicationCount={monthlyApplicationCount}
+        />
+      )}
 
       {profile?.role === "admin" && (
         <>
@@ -614,6 +703,16 @@ export default function DashboardPage() {
               value={applicationCount}
               hint="Jobs you have applied for."
               icon="📩"
+            />
+
+            <StatCard
+              label="This month"
+              value={applicationUsageText(profile.tier, monthlyApplicationCount)}
+              hint={applicationsRemainingText(
+                profile.tier,
+                monthlyApplicationCount
+              )}
+              icon="📅"
             />
 
             <StatCard
