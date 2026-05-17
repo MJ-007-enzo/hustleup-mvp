@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
@@ -279,6 +280,7 @@ export default function MyJobsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [editingJob, setEditingJob] = useState<JobWithDetails | null>(null);
+  const [jobToDelete, setJobToDelete] = useState<JobWithDetails | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -310,12 +312,12 @@ export default function MyJobsPage() {
     return jobs.filter((job) => job.is_premium).length;
   }, [jobs]);
 
- async function loadPage(clearMessage = true) {
-  setCheckingAccess(true);
+  async function loadPage(clearMessage = true) {
+    setCheckingAccess(true);
 
-  if (clearMessage) {
-    setMessage("");
-  }
+    if (clearMessage) {
+      setMessage("");
+    }
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -409,18 +411,12 @@ export default function MyJobsPage() {
       return;
     }
 
-   setEditingJob(null);
-await loadPage(false);
-setMessage("Job updated successfully.");
+    setEditingJob(null);
+    await loadPage(false);
+    setMessage("Job updated successfully.");
   }
 
   async function deleteJob(job: JobWithDetails) {
-    const confirmed = window.confirm(
-      `Delete "${job.title}"? This will also remove related applications.`
-    );
-
-    if (!confirmed) return;
-
     setDeletingJobId(job.id);
     setMessage("");
 
@@ -433,8 +429,9 @@ setMessage("Job updated successfully.");
       return;
     }
 
-   await loadPage(false);
-setMessage("Job deleted successfully.");
+    setJobToDelete(null);
+    await loadPage(false);
+    setMessage("Job deleted successfully.");
   }
 
   if (checkingAccess) {
@@ -482,6 +479,30 @@ setMessage("Job deleted successfully.");
         message={message}
         type={toastType}
         onClose={() => setMessage("")}
+      />
+
+      <ConfirmModal
+        open={!!jobToDelete}
+        title="Delete this job?"
+        description={
+          jobToDelete
+            ? `You are about to delete "${jobToDelete.title}". This will permanently remove the job listing and may also remove related applications.`
+            : ""
+        }
+        confirmText="Delete job"
+        cancelText="Keep job"
+        danger
+        busy={deletingJobId === jobToDelete?.id}
+        onClose={() => {
+          if (!deletingJobId) {
+            setJobToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (jobToDelete) {
+            deleteJob(jobToDelete);
+          }
+        }}
       />
 
       <section
@@ -735,7 +756,7 @@ setMessage("Job deleted successfully.");
                 <button
                   className="btn"
                   style={dangerButtonStyle}
-                  onClick={() => deleteJob(job)}
+                  onClick={() => setJobToDelete(job)}
                   disabled={deletingJobId === job.id}
                 >
                   {deletingJobId === job.id ? "Deleting..." : "Delete"}
