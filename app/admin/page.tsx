@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile, Tier, WaitlistItem } from "@/lib/types";
 
@@ -286,6 +287,14 @@ export default function AdminPage() {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  const toastType =
+    message.includes("upgraded") ||
+    message.includes("verified") ||
+    message.includes("unverified") ||
+    message.includes("Waitlist user")
+      ? "success"
+      : "error";
+
   useEffect(() => {
     function checkMobile() {
       setIsMobile(window.innerWidth <= 820);
@@ -330,9 +339,12 @@ export default function AdminPage() {
     return Math.round((filled / fields.length) * 100);
   }
 
-  async function loadAdmin() {
+  async function loadAdmin(clearMessage = true) {
     setLoading(true);
-    setMessage("");
+
+    if (clearMessage) {
+      setMessage("");
+    }
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -383,6 +395,8 @@ export default function AdminPage() {
   }
 
   async function updateWaitlist(id: string, status: "approved" | "rejected") {
+    setMessage("");
+
     const { error } = await supabase
       .from("waitlist")
       .update({ status })
@@ -393,12 +407,13 @@ export default function AdminPage() {
       return;
     }
 
+    await loadAdmin(false);
     setMessage(`Waitlist user ${status}.`);
-    loadAdmin();
   }
 
   async function upgradeUser(id: string, tier: Tier) {
     setUpdatingUserId(id);
+    setMessage("");
 
     const { error } = await supabase
       .from("profiles")
@@ -412,12 +427,13 @@ export default function AdminPage() {
       return;
     }
 
+    await loadAdmin(false);
     setMessage(`User upgraded to ${tier}.`);
-    loadAdmin();
   }
 
   async function toggleVerified(user: UpgradedProfile) {
     setUpdatingUserId(user.id);
+    setMessage("");
 
     const { error } = await supabase
       .from("profiles")
@@ -431,13 +447,13 @@ export default function AdminPage() {
       return;
     }
 
+    await loadAdmin(false);
+
     setMessage(
       user.is_verified
         ? `${user.full_name || user.email} is now unverified.`
         : `${user.full_name || user.email} is now verified.`
     );
-
-    loadAdmin();
   }
 
   if (loading) {
@@ -451,6 +467,12 @@ export default function AdminPage() {
   if (profile?.role !== "admin") {
     return (
       <main className="container">
+        <Toast
+          message={message}
+          type={toastType}
+          onClose={() => setMessage("")}
+        />
+
         <span className="badge">Admin</span>
         <h1>Access blocked.</h1>
         <p>
@@ -462,6 +484,12 @@ export default function AdminPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={toastType}
+        onClose={() => setMessage("")}
+      />
+
       <section
         style={{
           display: "grid",
@@ -479,12 +507,6 @@ export default function AdminPage() {
           </p>
         </div>
       </section>
-
-      {message && (
-        <div className="notice success" style={{ marginBottom: 18 }}>
-          {message}
-        </div>
-      )}
 
       <section
         style={{
@@ -635,7 +657,9 @@ export default function AdminPage() {
                       <button
                         className={user.is_verified ? "btn" : "btn btn-primary"}
                         style={
-                          user.is_verified ? dangerButtonStyle : primaryButtonStyle
+                          user.is_verified
+                            ? dangerButtonStyle
+                            : primaryButtonStyle
                         }
                         onClick={() => toggleVerified(user)}
                         disabled={updatingUserId === user.id}
