@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import ConfirmModal from "@/components/ConfirmModal";
 import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile, Tier, WaitlistItem } from "@/lib/types";
@@ -287,6 +288,14 @@ export default function AdminPage() {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  const [userToUnverify, setUserToUnverify] =
+    useState<UpgradedProfile | null>(null);
+  const [waitlistToReject, setWaitlistToReject] =
+    useState<WaitlistItem | null>(null);
+  const [rejectingWaitlistId, setRejectingWaitlistId] = useState<string | null>(
+    null
+  );
+
   const toastType =
     message.includes("upgraded") ||
     message.includes("verified") ||
@@ -397,16 +406,23 @@ export default function AdminPage() {
   async function updateWaitlist(id: string, status: "approved" | "rejected") {
     setMessage("");
 
+    if (status === "rejected") {
+      setRejectingWaitlistId(id);
+    }
+
     const { error } = await supabase
       .from("waitlist")
       .update({ status })
       .eq("id", id);
+
+    setRejectingWaitlistId(null);
 
     if (error) {
       setMessage(error.message);
       return;
     }
 
+    setWaitlistToReject(null);
     await loadAdmin(false);
     setMessage(`Waitlist user ${status}.`);
   }
@@ -447,6 +463,7 @@ export default function AdminPage() {
       return;
     }
 
+    setUserToUnverify(null);
     await loadAdmin(false);
 
     setMessage(
@@ -488,6 +505,56 @@ export default function AdminPage() {
         message={message}
         type={toastType}
         onClose={() => setMessage("")}
+      />
+
+      <ConfirmModal
+        open={!!userToUnverify}
+        title="Unverify this user?"
+        description={
+          userToUnverify
+            ? `You are about to remove the verified badge from ${
+                userToUnverify.full_name || userToUnverify.email
+              }. This may reduce trust and visibility for this profile.`
+            : ""
+        }
+        confirmText="Unverify user"
+        cancelText="Keep verified"
+        danger
+        busy={updatingUserId === userToUnverify?.id}
+        onClose={() => {
+          if (!updatingUserId) {
+            setUserToUnverify(null);
+          }
+        }}
+        onConfirm={() => {
+          if (userToUnverify) {
+            toggleVerified(userToUnverify);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={!!waitlistToReject}
+        title="Reject waitlist user?"
+        description={
+          waitlistToReject
+            ? `You are about to reject ${waitlistToReject.full_name}. This user will be marked as rejected in the waitlist.`
+            : ""
+        }
+        confirmText="Reject user"
+        cancelText="Keep pending"
+        danger
+        busy={rejectingWaitlistId === waitlistToReject?.id}
+        onClose={() => {
+          if (!rejectingWaitlistId) {
+            setWaitlistToReject(null);
+          }
+        }}
+        onConfirm={() => {
+          if (waitlistToReject) {
+            updateWaitlist(waitlistToReject.id, "rejected");
+          }
+        }}
       />
 
       <section
@@ -661,7 +728,13 @@ export default function AdminPage() {
                             ? dangerButtonStyle
                             : primaryButtonStyle
                         }
-                        onClick={() => toggleVerified(user)}
+                        onClick={() => {
+                          if (user.is_verified) {
+                            setUserToUnverify(user);
+                          } else {
+                            toggleVerified(user);
+                          }
+                        }}
                         disabled={updatingUserId === user.id}
                       >
                         {updatingUserId === user.id
@@ -735,7 +808,7 @@ export default function AdminPage() {
                       <button
                         className="btn"
                         style={dangerButtonStyle}
-                        onClick={() => updateWaitlist(item.id, "rejected")}
+                        onClick={() => setWaitlistToReject(item)}
                       >
                         Reject
                       </button>
