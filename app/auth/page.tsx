@@ -2,6 +2,7 @@
 
 import type { CSSProperties, FormEvent } from "react";
 import { useState } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 
 type AuthMode = "login" | "signup";
@@ -227,6 +228,12 @@ export default function AuthPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={messageType}
+        onClose={() => setMessage("")}
+      />
+
       <section
         style={{
           display: "grid",
@@ -462,23 +469,6 @@ export default function AuthPage() {
                 ? "Create account"
                 : "Login"}
           </button>
-
-          {message && (
-            <div
-              className={`notice ${
-                messageType === "success"
-                  ? "success"
-                  : messageType === "error"
-                    ? "error"
-                    : ""
-              }`}
-              style={{
-                marginTop: 14,
-              }}
-            >
-              {message}
-            </div>
-          )}
 
           {mode === "signup" ? (
             <p
