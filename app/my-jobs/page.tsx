@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
 
@@ -284,6 +285,8 @@ export default function MyJobsPage() {
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  const toastType = message.includes("successfully") ? "success" : "error";
+
   useEffect(() => {
     function checkMobile() {
       setIsMobile(window.innerWidth <= 820);
@@ -307,9 +310,12 @@ export default function MyJobsPage() {
     return jobs.filter((job) => job.is_premium).length;
   }, [jobs]);
 
-  async function loadPage() {
-    setCheckingAccess(true);
+ async function loadPage(clearMessage = true) {
+  setCheckingAccess(true);
+
+  if (clearMessage) {
     setMessage("");
+  }
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -403,9 +409,9 @@ export default function MyJobsPage() {
       return;
     }
 
-    setMessage("Job updated successfully.");
-    setEditingJob(null);
-    loadPage();
+   setEditingJob(null);
+await loadPage(false);
+setMessage("Job updated successfully.");
   }
 
   async function deleteJob(job: JobWithDetails) {
@@ -427,8 +433,8 @@ export default function MyJobsPage() {
       return;
     }
 
-    setMessage("Job deleted successfully.");
-    loadPage();
+   await loadPage(false);
+setMessage("Job deleted successfully.");
   }
 
   if (checkingAccess) {
@@ -442,6 +448,12 @@ export default function MyJobsPage() {
   if (profile?.role !== "job_owner" && profile?.role !== "admin") {
     return (
       <main className="container">
+        <Toast
+          message={message}
+          type={toastType}
+          onClose={() => setMessage("")}
+        />
+
         <span className="badge">Access blocked</span>
 
         <h1>You cannot manage jobs.</h1>
@@ -466,6 +478,12 @@ export default function MyJobsPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={toastType}
+        onClose={() => setMessage("")}
+      />
+
       <section
         style={{
           display: "grid",
@@ -543,17 +561,6 @@ export default function MyJobsPage() {
           compact={isMobile}
         />
       </section>
-
-      {message && (
-        <div
-          className={`notice ${
-            message.includes("successfully") ? "success" : "error"
-          }`}
-          style={{ marginBottom: 22 }}
-        >
-          {message}
-        </div>
-      )}
 
       {jobs.length === 0 ? (
         <section
