@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import {
   FormEvent,
+  ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -168,6 +170,246 @@ function capitalizeWords(value: string) {
 function capitalizeSentences(value: string) {
   return value.replace(/(^\s*[a-z])|([.!?]\s+[a-z])/g, (match) =>
     match.toUpperCase()
+  );
+}
+
+function formatTierName(tier?: string | null) {
+  if (!tier) return "Beginner";
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
+}
+
+function planHeadline(tier?: string | null) {
+  if (tier === "basic") return "Better visibility unlocked.";
+  if (tier === "premium") return "Premium access active.";
+  if (tier === "advanced") return "Advanced rare access active.";
+  return "Starter access active.";
+}
+
+function planDescription(tier?: string | null) {
+  if (tier === "basic") {
+    return "You can preview Premium job details, but Premium applications still need Premium.";
+  }
+
+  if (tier === "premium") {
+    return "You can view and apply to Premium jobs with stronger profile positioning.";
+  }
+
+  if (tier === "advanced") {
+    return "Admin-controlled high-trust access with maximum visibility and future priority benefits.";
+  }
+
+  return "You can apply to regular jobs. Premium listings stay locked until you upgrade.";
+}
+
+function PlanPowerItem({
+  children,
+  locked = false,
+}: {
+  children: ReactNode;
+  locked?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 11px",
+        borderRadius: 15,
+        background: locked
+          ? "linear-gradient(180deg, #fff7f7, #fff1f1)"
+          : "rgba(255,255,255,0.8)",
+        border: locked
+          ? "1px solid rgba(239,68,68,0.18)"
+          : "1px solid rgba(255,90,31,0.12)",
+        boxShadow: "0 10px 22px rgba(17,24,39,0.035)",
+      }}
+    >
+      <span
+        style={{
+          width: 23,
+          height: 23,
+          borderRadius: 999,
+          display: "grid",
+          placeItems: "center",
+          background: locked ? "#fee2e2" : "var(--brand-soft)",
+          color: locked ? "#b91c1c" : "var(--brand-dark)",
+          fontWeight: 900,
+          flexShrink: 0,
+          fontSize: 12,
+        }}
+      >
+        {locked ? "!" : "✓"}
+      </span>
+
+      <span
+        style={{
+          color: locked ? "#b91c1c" : "var(--muted)",
+          fontWeight: 750,
+          fontSize: 14,
+          lineHeight: 1.35,
+        }}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function PlanPowerCard({ tier }: { tier?: string | null }) {
+  const currentTier = tier || "beginner";
+
+  const isBeginner = currentTier === "beginner";
+  const isBasic = currentTier === "basic";
+  const isPremium = currentTier === "premium";
+  const isAdvanced = currentTier === "advanced";
+
+  return (
+    <div
+      style={{
+        padding: 14,
+        borderRadius: 22,
+        background:
+          isPremium || isAdvanced
+            ? "radial-gradient(circle at 12% 10%, rgba(255,90,31,0.16), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,250,246,0.86))"
+            : "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,250,246,0.84))",
+        border:
+          isPremium || isAdvanced
+            ? "1px solid rgba(255,90,31,0.22)"
+            : "1px solid rgba(255,90,31,0.14)",
+        boxShadow:
+          isPremium || isAdvanced
+            ? "0 20px 48px rgba(255,90,31,0.1), 0 12px 28px rgba(17,24,39,0.06)"
+            : "0 12px 28px rgba(17,24,39,0.045)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <small
+            style={{
+              display: "block",
+              color: "var(--muted)",
+              fontWeight: 900,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: 6,
+            }}
+          >
+            Plan power
+          </small>
+
+          <h3
+            style={{
+              margin: 0,
+              color: "var(--premium)",
+              lineHeight: 1.15,
+            }}
+          >
+            {planHeadline(currentTier)}
+          </h3>
+        </div>
+
+        <span
+          className={isPremium || isAdvanced ? "premium-badge" : "tag"}
+          style={{
+            flexShrink: 0,
+          }}
+        >
+          {formatTierName(currentTier)}
+        </span>
+      </div>
+
+      <p
+        style={{
+          marginTop: 0,
+          marginBottom: 14,
+          fontWeight: 650,
+          lineHeight: 1.5,
+        }}
+      >
+        {planDescription(currentTier)}
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 8,
+        }}
+      >
+        <PlanPowerItem>Regular jobs unlocked</PlanPowerItem>
+
+        <PlanPowerItem locked={isBeginner}>
+          Premium job details {isBeginner ? "locked" : "unlocked"}
+        </PlanPowerItem>
+
+        <PlanPowerItem locked={isBeginner || isBasic}>
+          Premium applications{" "}
+          {isPremium || isAdvanced ? "unlocked" : "locked"}
+        </PlanPowerItem>
+
+        <PlanPowerItem locked={isBeginner}>
+          Profile visibility{" "}
+          {isAdvanced
+            ? "maximum"
+            : isPremium
+              ? "priority"
+              : isBasic
+                ? "improved"
+                : "standard"}
+        </PlanPowerItem>
+      </div>
+
+      {(isBeginner || isBasic) && (
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            marginTop: 14,
+          }}
+        >
+          <Link
+            className="btn btn-primary"
+            href="/pricing"
+            style={{
+              minHeight: 46,
+              borderRadius: 15,
+              padding: "0 16px",
+              fontWeight: 850,
+              boxShadow:
+                "0 16px 34px rgba(255,90,31,0.18), 0 10px 24px rgba(17,24,39,0.08)",
+            }}
+          >
+            Upgrade plan
+          </Link>
+
+          <Link
+            className="btn"
+            href="/jobs"
+            style={{
+              minHeight: 46,
+              borderRadius: 15,
+              padding: "0 16px",
+              fontWeight: 850,
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+              border: "1px solid rgba(255,90,31,0.16)",
+              color: "var(--premium)",
+              boxShadow: "0 12px 26px rgba(17,24,39,0.06)",
+            }}
+          >
+            Browse jobs
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -732,6 +974,8 @@ export default function ProfilePage() {
               </span>
             </div>
           </div>
+
+          <PlanPowerCard tier={profile?.tier} />
 
           <div
             style={{
