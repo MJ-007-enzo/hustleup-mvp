@@ -1,7 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
 
@@ -122,6 +123,8 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const toastType = message.includes("marked") ? "success" : "error";
 
   useEffect(() => {
     loadPage();
@@ -308,6 +311,21 @@ export default function ApplicationsPage() {
       prev.map((app) => (app.id === applicationId ? { ...app, status } : app))
     );
 
+    if (status === "shortlisted") {
+      setMessage("Application shortlisted successfully.");
+      return;
+    }
+
+    if (status === "rejected") {
+      setMessage("Application rejected successfully.");
+      return;
+    }
+
+    if (status === "hired") {
+      setMessage("Application marked as hired successfully.");
+      return;
+    }
+
     setMessage(`Application marked as ${status}.`);
   }
 
@@ -493,7 +511,7 @@ export default function ApplicationsPage() {
     children,
   }: {
     title: string;
-    children: React.ReactNode;
+    children: ReactNode;
   }) {
     return (
       <div
@@ -653,6 +671,12 @@ export default function ApplicationsPage() {
 
   return (
     <main className="container">
+      <Toast
+        message={message}
+        type={toastType}
+        onClose={() => setMessage("")}
+      />
+
       <section className="applications-hero">
         <div>
           <span className="badge">Applications</span>
@@ -698,16 +722,6 @@ export default function ApplicationsPage() {
           </p>
         </div>
       </section>
-
-      {message && (
-        <div
-          className={`notice ${
-            message.includes("marked") ? "success" : "error"
-          }`}
-        >
-          {message}
-        </div>
-      )}
 
       <section
         style={{
