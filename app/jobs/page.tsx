@@ -76,6 +76,24 @@ function formatSalaryPeriod(period: string) {
   return `/${period}`;
 }
 
+function getCurrentMonthStartISO() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  return monthStart.toISOString();
+}
+
+function applicationLimitForTier(tier?: string | null) {
+  if (tier === "premium" || tier === "advanced") {
+    return null;
+  }
+
+  if (tier === "basic") {
+    return 12;
+  }
+
+  return 5;
+}
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -84,6 +102,7 @@ export default function JobsPage() {
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobWithDetails | null>(null);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+  const [monthlyApplicationCount, setMonthlyApplicationCount] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] = useState("all");
@@ -223,6 +242,14 @@ export default function JobsPage() {
   const hasPremiumAccess =
     viewerTier === "premium" || viewerTier === "advanced";
   const hasBasicPreviewAccess = viewerTier === "basic";
+  const monthlyApplicationLimit = applicationLimitForTier(viewerTier);
+  const hasUnlimitedApplications = monthlyApplicationLimit === null;
+  const applicationsRemaining = hasUnlimitedApplications
+    ? null
+    : Math.max(0, monthlyApplicationLimit - monthlyApplicationCount);
+  const isApplicationLimitReached =
+    !hasUnlimitedApplications &&
+    monthlyApplicationCount >= monthlyApplicationLimit;
 
   function canViewJobDetails(job: JobWithDetails) {
     if (!job.is_premium) return true;
@@ -246,6 +273,14 @@ export default function JobsPage() {
     }
 
     return "Premium listing: upgrade to view details and apply.";
+  }
+
+  function applicationLimitText() {
+    if (hasUnlimitedApplications) {
+      return "Unlimited applications this month.";
+    }
+
+    return `${monthlyApplicationCount}/${monthlyApplicationLimit} applications used this month. ${applicationsRemaining} remaining.`;
   }
 
   function selectedLabel(options: DropdownOption[], value: string) {
@@ -283,41 +318,54 @@ export default function JobsPage() {
     if (!authData.user) {
       setProfile(null);
       setAppliedJobIds(new Set());
+      setMonthlyApplicationCount(0);
       return;
     }
 
-    const [{ data: profileData }, { data: applicationData }] =
-      await Promise.all([
-        supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authData.user.id)
-          .single(),
-        supabase
-          .from("applications")
-          .select("job_id")
-          .eq("seeker_id", authData.user.id),
-      ]);
+    const monthStart = getCurrentMonthStartISO();
+
+    const [
+      { data: profileData },
+      { data: applicationData },
+      { count: monthlyCount },
+    ] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", authData.user.id)
+        .single(),
+      supabase
+        .from("applications")
+        .select("job_id")
+        .eq("seeker_id", authData.user.id),
+      supabase
+        .from("applications")
+        .select("*", { count: "exact", head: true })
+        .eq("seeker_id", authData.user.id)
+        .gte("created_at", monthStart),
+    ]);
 
     setProfile((profileData as Profile) ?? null);
 
     setAppliedJobIds(
       new Set((applicationData ?? []).map((item) => item.job_id))
     );
+
+    setMonthlyApplicationCount(monthlyCount ?? 0);
   }
 
   async function apply(job: JobWithDetails) {
+    if (appliedJobIds.has(job.id)) {
+      setApplicationMessage("You already applied for this job.");
+      return;
+    }
+
     if (!canApplyToJob(job)) {
       setApplicationMessage(
         job.is_premium
           ? "Premium applications require the Premium plan."
           : "You cannot apply to this job right now."
       );
-      return;
-    }
-
-    if (appliedJobIds.has(job.id)) {
-      setApplicationMessage("You already applied for this job.");
       return;
     }
 
@@ -328,6 +376,14 @@ export default function JobsPage() {
 
     if (!authData.user) {
       window.location.href = "/auth";
+      return;
+    }
+
+    if (isApplicationLimitReached) {
+      setApplyingJobId(null);
+      setApplicationMessage(
+        `You reached your monthly application limit of ${monthlyApplicationLimit}. Upgrade your plan for more applications.`
+      );
       return;
     }
 
@@ -362,6 +418,10 @@ export default function JobsPage() {
       return next;
     });
 
+    if (!hasUnlimitedApplications) {
+      setMonthlyApplicationCount((previousCount) => previousCount + 1);
+    }
+
     setApplicationMessage("Application submitted successfully.");
     setSelectedJob(null);
   }
@@ -393,6 +453,14 @@ export default function JobsPage() {
   }
 
   function renderApplyButton(job: JobWithDetails, modal = false) {
+    if (appliedJobIds.has(job.id)) {
+      return (
+        <button className="btn btn-primary" disabled>
+          Applied
+        </button>
+      );
+    }
+
     if (!canApplyToJob(job)) {
       return (
         <Link className="btn btn-primary" href="/pricing">
@@ -403,19 +471,25 @@ export default function JobsPage() {
       );
     }
 
+    if (isApplicationLimitReached) {
+      return (
+        <Link className="btn btn-primary" href="/pricing">
+          Upgrade limit
+        </Link>
+      );
+    }
+
     return (
       <button
         className="btn btn-primary"
         onClick={() => apply(job)}
-        disabled={applyingJobId === job.id || appliedJobIds.has(job.id)}
+        disabled={applyingJobId === job.id}
       >
-        {appliedJobIds.has(job.id)
-          ? "Applied"
-          : applyingJobId === job.id
-            ? "Applying..."
-            : modal
-              ? "Apply for this job"
-              : "Apply now"}
+        {applyingJobId === job.id
+          ? "Applying..."
+          : modal
+            ? "Apply for this job"
+            : "Apply now"}
       </button>
     );
   }
@@ -602,12 +676,13 @@ export default function JobsPage() {
 
       {profile && (
         <div className="notice" style={{ marginBottom: 14 }}>
-          Current access: <strong>{viewerTier}</strong>
+          Current access: <strong>{viewerTier}</strong> ·{" "}
+          <strong>{applicationLimitText()}</strong>
           {viewerTier === "beginner" &&
-            " · Premium listings are visible but locked."}
+            " Premium listings are visible but locked."}
           {viewerTier === "basic" &&
-            " · Premium details are unlocked, but Premium applications need Premium."}
-          {hasPremiumAccess && " · Premium listings are fully unlocked."}
+            " Premium details are unlocked, but Premium applications need Premium."}
+          {hasPremiumAccess && " Premium listings are fully unlocked."}
         </div>
       )}
 
@@ -779,6 +854,20 @@ export default function JobsPage() {
               </div>
             )}
 
+            {!job.is_premium && isApplicationLimitReached && (
+              <div
+                className="notice error"
+                style={{
+                  marginTop: 14,
+                  marginBottom: 14,
+                  fontSize: 13,
+                  fontWeight: 750,
+                }}
+              >
+                Monthly application limit reached. Upgrade to apply more.
+              </div>
+            )}
+
             <p className="job-requirements">
               {job.requirements ||
                 "Tap View details to see full job information."}
@@ -838,6 +927,19 @@ export default function JobsPage() {
                 {hasBasicPreviewAccess
                   ? "Basic preview unlocked. Upgrade to Premium to apply for this listing."
                   : "This is a Premium listing. Upgrade to unlock full access."}
+              </div>
+            )}
+
+            {!selectedJob.is_premium && isApplicationLimitReached && (
+              <div
+                className="notice error"
+                style={{
+                  marginBottom: 18,
+                  fontWeight: 750,
+                }}
+              >
+                You reached your monthly application limit. Upgrade your plan to
+                apply more this month.
               </div>
             )}
 
