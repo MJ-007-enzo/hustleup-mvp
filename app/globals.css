@@ -2449,31 +2449,61 @@ body:has(.job-modal-backdrop) {
   align-items: end;
   padding: 54px 0 26px;
 }
-
 .profile-score-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 120px 1fr;
   align-items: center;
-  gap: 18px;
-  padding: 22px;
-  border-radius: 28px;
-  border: 1px solid var(--line-warm);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 250, 246, 0.92));
-  box-shadow: var(--shadow-soft);
+  gap: 26px;
+
+  min-height: 190px;
+  padding: 28px 34px;
+  border-radius: 30px;
+
+  border: 1px solid var(--border);
+  background: var(--card);
+
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.18),
+    0 12px 34px rgba(255, 90, 31, 0.08);
+}
+.profile-score-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.profile-score-card .tag {
+  margin-bottom: 8px;
+}
+
+.profile-score-card h3 {
+  margin: 0 0 14px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.profile-score-card p {
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.55;
 }
 
 .profile-score-ring {
   width: 92px;
   height: 92px;
+  min-width: 92px;
+  min-height: 92px;
+  flex-shrink: 0;
+
   border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(circle at center, white 55%, transparent 57%),
-    conic-gradient(var(--brand) 0deg, var(--warning) 270deg, #eadfd4 270deg);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   box-shadow: 0 16px 34px rgba(255, 90, 31, 0.12);
 }
-
 .profile-score-ring span {
   font-size: 22px;
   font-weight: 950;
@@ -3146,3 +3176,618 @@ body:has(.job-modal-backdrop) {
   }
 }
 
+/* FIX: Job details modal layout */
+.job-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  width: 100vw;
+  height: 100vh;
+  padding: 96px 18px 24px;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.job-modal {
+  position: relative;
+  z-index: 100000;
+  width: min(820px, 100%);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  border-radius: 30px;
+}
+
+.job-modal-close {
+  position: sticky;
+  top: 0;
+  margin-left: auto;
+  z-index: 100001;
+}
+
+@media (max-width: 640px) {
+  .job-modal-backdrop {
+    padding: 86px 10px 18px;
+  }
+
+  .job-modal {
+    width: 100%;
+    max-height: calc(100vh - 104px);
+    border-radius: 24px;
+  }
+}/* POLISH: Navbar curved bottom corners */
+header,
+.navbar,
+.site-navbar {
+  border-bottom-left-radius: 26px;
+  border-bottom-right-radius: 26px;
+  overflow: visible;
+}
+
+/* POLISH: Add clean gap between navbar and job details modal */
+.job-modal-backdrop {
+  padding-top: 124px !important;
+}
+
+.job-modal {
+  margin-top: 10px !important;
+}
+
+@media (max-width: 640px) {
+  .job-modal-backdrop {
+    padding-top: 104px !important;
+  }
+
+  .job-modal {
+    margin-top: 8px !important;
+  }
+}
+
+/* ========================================================= */
+/* HUSTLEUP TRUE DARK MODE - FINAL CLEAN VERSION             */
+/* Goal: no white/grey surfaces in dark mode                 */
+/* Colors: black + orange + deep blue only                   */
+/* ========================================================= */
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  --bg: #000000 !important;
+  --card: #050505 !important;
+  --card-soft: #0b0b0b !important;
+
+  --text: #ffffff !important;
+  --muted: #b8c0cc !important;
+
+  --premium: #ffffff !important;
+  --premium-soft: #e5e7eb !important;
+
+  --brand: #ff5a1f !important;
+  --brand-dark: #ff7a1f !important;
+  --brand-soft: rgba(255, 90, 31, 0.14) !important;
+
+  --line: #252525 !important;
+  --line-warm: rgba(255, 90, 31, 0.22) !important;
+
+  --success: #22c55e !important;
+  --success-soft: rgba(34, 197, 94, 0.12) !important;
+
+  --warning: #f59e0b !important;
+  --warning-soft: rgba(245, 158, 11, 0.13) !important;
+
+  --danger: #ef4444 !important;
+  --danger-soft: rgba(239, 68, 68, 0.13) !important;
+
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.6) !important;
+  --shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.44) !important;
+
+  --brand-gradient: linear-gradient(135deg, #ff5a1f 0%, #f59e0b 100%) !important;
+  --premium-gradient: linear-gradient(135deg, #061429 0%, #0f2747 100%) !important;
+
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Main page background */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] main {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(255, 90, 31, 0.08), transparent 26%),
+    radial-gradient(circle at 92% 10%, rgba(15, 39, 71, 0.34), transparent 30%),
+    #000000 !important;
+}
+
+/* Stop old light dotted/glow layers from making grey patches */
+html[data-theme="dark"] main::before,
+html[data-theme="dark"] .grid::before {
+  background: none !important;
+  background-image: none !important;
+}
+
+/* Navbar */
+html[data-theme="dark"] header,
+html[data-theme="dark"] nav,
+html[data-theme="dark"] .navbar,
+html[data-theme="dark"] .nav-links {
+  background: rgba(5, 5, 5, 0.96) !important;
+  border-color: #252525 !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Base text */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] strong,
+html[data-theme="dark"] label,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] p,
+html[data-theme="dark"] small,
+html[data-theme="dark"] .job-date,
+html[data-theme="dark"] .job-company,
+html[data-theme="dark"] .application-date small,
+html[data-theme="dark"] .profile-mini-grid small,
+html[data-theme="dark"] .job-meta-grid small,
+html[data-theme="dark"] .job-modal-grid small {
+  color: #d7dbe3 !important;
+}
+
+/* All important surfaces */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .job-card,
+html[data-theme="dark"] .my-job-card,
+html[data-theme="dark"] .application-card,
+html[data-theme="dark"] .jobs-summary-card,
+html[data-theme="dark"] .profile-preview-card,
+html[data-theme="dark"] .profile-score-card,
+html[data-theme="dark"] .application-stat-card,
+html[data-theme="dark"] .applicant-profile-card,
+html[data-theme="dark"] .timeline-step,
+html[data-theme="dark"] .application-help-text,
+html[data-theme="dark"] .table-wrap,
+html[data-theme="dark"] .job-modal,
+html[data-theme="dark"] .hero .card.form {
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.98), rgba(4, 4, 4, 0.98)) !important;
+  border-color: rgba(255, 90, 31, 0.18) !important;
+  color: #ffffff !important;
+  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.52) !important;
+}
+
+/* Catch any custom card names */
+html[data-theme="dark"] [class*="card"],
+html[data-theme="dark"] [class*="Card"] {
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, 0.98), rgba(4, 4, 4, 0.98)) !important;
+  border-color: rgba(255, 90, 31, 0.18) !important;
+  color: #ffffff !important;
+}
+
+/* Inner blocks: feature rows, checklist rows, plan benefits, guide rows */
+html[data-theme="dark"] [class*="feature"],
+html[data-theme="dark"] [class*="Feature"],
+html[data-theme="dark"] [class*="benefit"],
+html[data-theme="dark"] [class*="Benefit"],
+html[data-theme="dark"] [class*="check"],
+html[data-theme="dark"] [class*="Check"],
+html[data-theme="dark"] [class*="guide"],
+html[data-theme="dark"] [class*="Guide"],
+html[data-theme="dark"] [class*="plan"],
+html[data-theme="dark"] [class*="Plan"],
+html[data-theme="dark"] [class*="perk"],
+html[data-theme="dark"] [class*="Perk"] {
+  background: #0f2747 !important;
+  border-color: rgba(255, 90, 31, 0.26) !important;
+  color: #ffffff !important;
+}
+
+/* Mini cards inside job/profile/application cards */
+html[data-theme="dark"] .job-meta-grid div,
+html[data-theme="dark"] .job-modal-grid div,
+html[data-theme="dark"] .profile-mini-grid div,
+html[data-theme="dark"] .availability-picker,
+html[data-theme="dark"] .salary-picker,
+html[data-theme="dark"] .profile-score-bar,
+html[data-theme="dark"] .applicant-profile-score,
+html[data-theme="dark"] .application-date {
+  background: #0b0b0b !important;
+  border-color: rgba(255, 90, 31, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* Inputs, selects, dropdowns */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] option,
+html[data-theme="dark"] .input,
+html[data-theme="dark"] .textarea,
+html[data-theme="dark"] .select,
+html[data-theme="dark"] [role="button"],
+html[data-theme="dark"] [role="listbox"],
+html[data-theme="dark"] [role="option"],
+html[data-theme="dark"] [class*="dropdown"],
+html[data-theme="dark"] [class*="Dropdown"],
+html[data-theme="dark"] [class*="menu"],
+html[data-theme="dark"] [class*="Menu"],
+html[data-theme="dark"] [class*="select"],
+html[data-theme="dark"] [class*="Select"],
+html[data-theme="dark"] [class*="picker"],
+html[data-theme="dark"] [class*="Picker"] {
+  background: #090909 !important;
+  border-color: rgba(255, 90, 31, 0.2) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Kill inline white/grey backgrounds from page.tsx style={{ background: ... }} */
+html[data-theme="dark"] [style*="background: #ffffff"],
+html[data-theme="dark"] [style*="background:#ffffff"],
+html[data-theme="dark"] [style*="background: white"],
+html[data-theme="dark"] [style*="background:white"],
+html[data-theme="dark"] [style*="background: #fff"],
+html[data-theme="dark"] [style*="background:#fff"],
+html[data-theme="dark"] [style*="background: #f5f5f5"],
+html[data-theme="dark"] [style*="background:#f5f5f5"],
+html[data-theme="dark"] [style*="background: #fafafa"],
+html[data-theme="dark"] [style*="background:#fafafa"],
+html[data-theme="dark"] [style*="background: #f8f8f8"],
+html[data-theme="dark"] [style*="background:#f8f8f8"],
+html[data-theme="dark"] [style*="background: #fffaf6"],
+html[data-theme="dark"] [style*="background:#fffaf6"],
+html[data-theme="dark"] [style*="background: rgb(255"],
+html[data-theme="dark"] [style*="background:rgba(255"],
+html[data-theme="dark"] [style*="background: rgba(255"],
+html[data-theme="dark"] [style*="background-image: linear-gradient(180deg, rgb(255"],
+html[data-theme="dark"] [style*="background-image:linear-gradient(180deg,rgb(255"],
+html[data-theme="dark"] [style*="background-image: linear-gradient(180deg, rgba(255"],
+html[data-theme="dark"] [style*="background-image:linear-gradient(180deg,rgba(255"] {
+  background: #0b0b0b !important;
+  background-image: none !important;
+  border-color: rgba(255, 90, 31, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* Kill inline grey backgrounds too */
+html[data-theme="dark"] [style*="background: #e5e5e5"],
+html[data-theme="dark"] [style*="background:#e5e5e5"],
+html[data-theme="dark"] [style*="background: #d4d4d4"],
+html[data-theme="dark"] [style*="background:#d4d4d4"],
+html[data-theme="dark"] [style*="background: #cfcfcf"],
+html[data-theme="dark"] [style*="background:#cfcfcf"],
+html[data-theme="dark"] [style*="background: rgb(245"],
+html[data-theme="dark"] [style*="background:rgba(245"],
+html[data-theme="dark"] [style*="background: rgba(245"] {
+  background: #0f2747 !important;
+  background-image: none !important;
+  border-color: rgba(255, 90, 31, 0.24) !important;
+  color: #ffffff !important;
+}
+
+/* Tables */
+html[data-theme="dark"] table,
+html[data-theme="dark"] thead,
+html[data-theme="dark"] tbody,
+html[data-theme="dark"] tr,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+  background: #050505 !important;
+  border-color: #252525 !important;
+  color: #ffffff !important;
+}
+
+/* Buttons */
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] button {
+  background: #0b0b0b !important;
+  border-color: rgba(255, 90, 31, 0.2) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] button[type="submit"],
+html[data-theme="dark"] .job-apply-btn {
+  background: var(--brand-gradient) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 16px 34px rgba(255, 90, 31, 0.26) !important;
+}
+
+/* Badges and pills */
+html[data-theme="dark"] .badge,
+html[data-theme="dark"] .tag,
+html[data-theme="dark"] .open-pill,
+html[data-theme="dark"] .premium-pill,
+html[data-theme="dark"] .premium-badge,
+html[data-theme="dark"] .verified-badge,
+html[data-theme="dark"] .unverified-badge,
+html[data-theme="dark"] .application-status,
+html[data-theme="dark"] .application-status-applied,
+html[data-theme="dark"] .application-status-shortlisted,
+html[data-theme="dark"] .application-status-hired,
+html[data-theme="dark"] .application-status-rejected {
+  background: #0f2747 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 90, 31, 0.28) !important;
+}
+
+/* Orange accents stay orange */
+html[data-theme="dark"] .notice,
+html[data-theme="dark"] .profile-link {
+  background: rgba(255, 90, 31, 0.14) !important;
+  color: #ffb076 !important;
+  border-color: rgba(255, 90, 31, 0.32) !important;
+}
+
+/* Circle icon backgrounds */
+html[data-theme="dark"] .currency-chip,
+html[data-theme="dark"] .profile-avatar-large,
+html[data-theme="dark"] .applicant-avatar {
+  background: #0f2747 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 90, 31, 0.24) !important;
+}
+
+/* Premium top strips stay orange */
+html[data-theme="dark"] .job-card-premium::before,
+html[data-theme="dark"] .pricing-card-premium::before,
+html[data-theme="dark"] .application-card::before,
+html[data-theme="dark"] .job-modal::before {
+  background: var(--brand-gradient) !important;
+}
+
+/* Scrollbars */
+html[data-theme="dark"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #000000 !important;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #ff5a1f !important;
+  border-radius: 999px;
+}
+
+/* Footer */
+html[data-theme="dark"] .footer {
+  background: #000000 !important;
+  border-top-color: #252525 !important;
+}
+
+/* Safety: no washed grey text on dark mode */
+html[data-theme="dark"] [style*="color: #6b7280"],
+html[data-theme="dark"] [style*="color:#6b7280"],
+html[data-theme="dark"] [style*="color: rgb(107"],
+html[data-theme="dark"] [style*="color:rgba(107"] {
+  color: #d7dbe3 !important;
+}
+/* Jobs filter panel theme fix */
+
+.jobs-filter-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 250, 246, 0.92));
+  border: 1px solid var(--line-warm);
+  border-radius: 26px;
+  padding: 18px;
+  box-shadow: var(--shadow-soft);
+}
+
+html[data-theme="dark"] .jobs-filter-panel {
+  background: #050505 !important;
+  border: 1px solid rgba(255, 122, 0, 0.18) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Jobs filter dropdown light/dark fix */
+
+.jobs-filter-panel {
+  position: relative;
+  z-index: 100;
+  overflow: visible;
+}
+
+.jobs-grid,
+.jobs-toolbar {
+  position: relative;
+  z-index: 1;
+}
+
+.jobs-filter-dropdown {
+  position: relative;
+  z-index: 200;
+}
+
+.jobs-filter-select {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line-warm);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #fffaf6);
+  color: var(--premium);
+  padding: 0 15px;
+  font-size: 15px;
+  font-weight: 850;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.04);
+}
+
+.jobs-filter-selected {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.jobs-filter-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: var(--muted);
+  border: 1px solid var(--line-warm);
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.jobs-filter-arrow.open {
+  transform: rotate(180deg);
+}
+
+.jobs-filter-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line-warm);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf6 100%);
+  box-shadow: 0 28px 70px rgba(17, 24, 39, 0.18);
+  padding: 8px;
+  z-index: 99999;
+}
+
+.jobs-filter-option {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--premium);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.jobs-filter-option:hover,
+.jobs-filter-option.selected {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+/* Dark mode version */
+
+html[data-theme="dark"] .jobs-filter-select {
+  background: #050505 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 122, 0, 0.25) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .jobs-filter-arrow {
+  background: #0f0f0f !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 122, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] .jobs-filter-menu {
+  background: #050505 !important;
+  border-color: rgba(255, 122, 0, 0.35) !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55) !important;
+}
+
+html[data-theme="dark"] .jobs-filter-option {
+  background: #0f0f0f !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .jobs-filter-option:hover,
+html[data-theme="dark"] .jobs-filter-option.selected {
+  background: rgba(255, 122, 0, 0.16) !important;
+  color: #ffffff !important;
+}
+/* Fix ugly native select + number spinner in dark mode */
+
+html[data-theme="dark"] select,
+html[data-theme="dark"] .select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #050505 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 122, 0, 0.35) !important;
+  border-radius: 16px !important;
+  padding: 0 42px 0 14px !important;
+  min-height: 48px;
+  font-weight: 800;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #ff7a00 50%),
+    linear-gradient(135deg, #ff7a00 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 14px) 50% !important;
+  background-size:
+    6px 6px,
+    6px 6px !important;
+  background-repeat: no-repeat !important;
+}
+
+html[data-theme="dark"] select option {
+  background: #050505 !important;
+  color: #ffffff !important;
+}
+
+/* remove number input ugly spinner */
+
+html[data-theme="dark"] input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+html[data-theme="dark"] input[type="number"]::-webkit-inner-spin-button,
+html[data-theme="dark"] input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background: var(--card-soft) !important;
+  color: var(--text) !important;
+
+  border: 1px solid rgba(255, 90, 31, 0.18) !important;
+  border-radius: 16px !important;
+
+  padding-right: 50px !important;
+}
+
+select option {
+  background: #0a0a0a;
+  color: #ffffff;
+}

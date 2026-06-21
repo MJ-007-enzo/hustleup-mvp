@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import ConfirmModal from "@/components/ConfirmModal";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
 
@@ -20,11 +20,10 @@ type JobWithDetails = Job & {
 const premiumCardStyle: CSSProperties = {
   position: "relative",
   overflow: "hidden",
-  border: "1px solid rgba(255,90,31,0.14)",
-  background:
-    "radial-gradient(circle at 8% 8%, rgba(255,90,31,0.065), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.985), rgba(255,250,246,0.94))",
+  border: "1px solid rgba(255,90,31,0.18)",
+  background: "var(--card)",
   boxShadow:
-    "0 28px 70px rgba(17,24,39,0.105), 0 14px 34px rgba(255,90,31,0.055)",
+    "0 28px 70px rgba(0,0,0,0.16), 0 14px 34px rgba(255,90,31,0.055)",
 };
 
 const actionButtonStyle: CSSProperties = {
@@ -38,17 +37,16 @@ const actionButtonStyle: CSSProperties = {
 
 const secondaryButtonStyle: CSSProperties = {
   ...actionButtonStyle,
-  background:
-    "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
-  border: "1px solid rgba(255,90,31,0.16)",
-  color: "var(--premium)",
+  background: "var(--card-soft)",
+  border: "1px solid rgba(255,90,31,0.18)",
+  color: "var(--text)",
 };
 
 const dangerButtonStyle: CSSProperties = {
   ...actionButtonStyle,
-  background: "linear-gradient(180deg, #fff7f7, #fff1f1)",
-  border: "1px solid rgba(239,68,68,0.22)",
-  color: "#b91c1c",
+  background: "var(--card-soft)",
+  border: "1px solid rgba(239,68,68,0.35)",
+  color: "#ff6b6b",
 };
 
 const primaryButtonStyle: CSSProperties = {
@@ -58,14 +56,14 @@ const primaryButtonStyle: CSSProperties = {
 };
 
 const formValueStyle: CSSProperties = {
-  color: "var(--premium)",
+  color: "var(--text)",
   fontSize: "16px",
   fontWeight: 750,
   fontFamily: "inherit",
 };
 
 const textareaValueStyle: CSSProperties = {
-  color: "var(--premium)",
+  color: "var(--text)",
   fontSize: "15px",
   fontWeight: 600,
   fontFamily: "inherit",
@@ -153,9 +151,9 @@ function InfoTile({
         minWidth: 0,
         padding: "12px 14px",
         borderRadius: 16,
-        background: "rgba(255,255,255,0.82)",
-        border: "1px solid rgba(255,90,31,0.12)",
-        boxShadow: "0 12px 28px rgba(17,24,39,0.055)",
+        background: "var(--card-soft)",
+        border: "1px solid rgba(255,90,31,0.18)",
+        boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
       }}
     >
       <small
@@ -175,7 +173,7 @@ function InfoTile({
       <strong
         style={{
           display: "block",
-          color: "var(--premium)",
+          color: "var(--text)",
           fontWeight: 800,
           lineHeight: 1.3,
           fontSize: 14,
@@ -255,7 +253,7 @@ function StatCard({
         style={{
           marginTop: compact ? 10 : 14,
           marginBottom: 8,
-          color: "var(--premium)",
+          color: "var(--text)",
           fontSize: compact ? 34 : undefined,
         }}
       >
@@ -277,17 +275,19 @@ function StatCard({
 }
 
 export default function MyJobsPage() {
+  const { showToast } = useToast();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [editingJob, setEditingJob] = useState<JobWithDetails | null>(null);
   const [jobToDelete, setJobToDelete] = useState<JobWithDetails | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
-  const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-
-  const toastType = message.includes("successfully") ? "success" : "error";
+  const [openEditDropdown, setOpenEditDropdown] = useState<
+    "salaryType" | "status" | null
+  >(null);
 
   useEffect(() => {
     function checkMobile() {
@@ -312,12 +312,8 @@ export default function MyJobsPage() {
     return jobs.filter((job) => job.is_premium).length;
   }, [jobs]);
 
-  async function loadPage(clearMessage = true) {
+  async function loadPage() {
     setCheckingAccess(true);
-
-    if (clearMessage) {
-      setMessage("");
-    }
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -333,7 +329,7 @@ export default function MyJobsPage() {
       .single();
 
     if (profileError) {
-      setMessage(profileError.message);
+      showToast(profileError.message, "error");
       setCheckingAccess(false);
       return;
     }
@@ -357,7 +353,7 @@ export default function MyJobsPage() {
     });
 
     if (jobError) {
-      setMessage(jobError.message);
+      showToast(jobError.message, "error");
       setCheckingAccess(false);
       return;
     }
@@ -380,7 +376,6 @@ export default function MyJobsPage() {
     if (!editingJob) return;
 
     setSaving(true);
-    setMessage("");
 
     const { error } = await supabase
       .from("jobs")
@@ -407,31 +402,192 @@ export default function MyJobsPage() {
     setSaving(false);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
     setEditingJob(null);
-    await loadPage(false);
-    setMessage("Job updated successfully.");
+    await loadPage();
+    showToast("Job updated successfully.", "success");
   }
 
   async function deleteJob(job: JobWithDetails) {
     setDeletingJobId(job.id);
-    setMessage("");
 
     const { error } = await supabase.from("jobs").delete().eq("id", job.id);
 
     setDeletingJobId(null);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
     setJobToDelete(null);
-    await loadPage(false);
-    setMessage("Job deleted successfully.");
+    await loadPage();
+    showToast("Job deleted successfully.", "success");
+  }
+
+  function EditDropdown({
+    dropdownKey,
+    value,
+    options,
+    onChange,
+  }: {
+    dropdownKey: "salaryType" | "status";
+    value: string;
+    options: { label: string; value: string }[];
+    onChange: (value: string) => void;
+  }) {
+    const isOpen = openEditDropdown === dropdownKey;
+    const selectedLabel =
+      options.find((option) => option.value === value)?.label || value;
+
+    return (
+      <div
+        style={{
+          position: "relative",
+          zIndex: isOpen ? 99999 : 20,
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => setOpenEditDropdown(isOpen ? null : dropdownKey)}
+          style={{
+            width: "100%",
+            minHeight: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            border: isOpen
+              ? "1px solid rgba(255, 122, 0, 0.75)"
+              : "1px solid rgba(255, 90, 31, 0.28)",
+            borderRadius: 16,
+            background: "var(--card-soft)",
+            color: "var(--text)",
+            padding: "0 14px",
+            fontSize: 16,
+            fontWeight: 850,
+            fontFamily: "inherit",
+            textAlign: "left",
+            cursor: "pointer",
+            boxShadow: isOpen
+              ? "0 0 0 4px rgba(255, 122, 0, 0.12)"
+              : "none",
+          }}
+        >
+          <span>{selectedLabel}</span>
+
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              background: isOpen
+                ? "rgba(255, 122, 0, 0.18)"
+                : "rgba(255, 90, 31, 0.1)",
+              color: "#ff7a00",
+              border: "1px solid rgba(255, 122, 0, 0.35)",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition:
+                "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
+              flexShrink: 0,
+              fontSize: 14,
+              fontWeight: 900,
+            }}
+          >
+            ↓
+          </span>
+        </button>
+
+        {isOpen && (
+          <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                left: 0,
+                right: 0,
+
+                zIndex: 99999,
+
+                background: "var(--card)",
+
+                opacity: 1,
+
+                isolation: "isolate",
+
+                border: "1px solid rgba(255,122,0,0.35)",
+
+                borderRadius: 24,
+
+                boxShadow:
+                  "0 20px 60px rgba(0,0,0,0.55)",
+
+                overflow: "hidden",
+              }}
+            >
+            {options.map((option) => {
+              const selected = option.value === value;
+
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpenEditDropdown(null);
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 42,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    border: selected
+                      ? "1px solid rgba(255, 122, 0, 0.35)"
+                      : "1px solid transparent",
+                    borderRadius: 14,
+                    background: selected
+                      ? "var(--brand-soft)"
+                      : "var(--card-soft)",
+                    color: "var(--text)",
+                    padding: "10px 12px",
+                    fontSize: 15,
+                    fontWeight: selected ? 950 : 800,
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    marginBottom: 6,
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.background =
+                      "var(--brand-soft)";
+                    event.currentTarget.style.borderColor =
+                      "rgba(255, 122, 0, 0.35)";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.background = selected
+                      ? "var(--brand-soft)"
+                      : "var(--card-soft)";
+                    event.currentTarget.style.borderColor = selected
+                      ? "rgba(255, 122, 0, 0.35)"
+                      : "transparent";
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {selected && <span>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (checkingAccess) {
@@ -445,12 +601,6 @@ export default function MyJobsPage() {
   if (profile?.role !== "job_owner" && profile?.role !== "admin") {
     return (
       <main className="container">
-        <Toast
-          message={message}
-          type={toastType}
-          onClose={() => setMessage("")}
-        />
-
         <span className="badge">Access blocked</span>
 
         <h1>You cannot manage jobs.</h1>
@@ -475,12 +625,6 @@ export default function MyJobsPage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={toastType}
-        onClose={() => setMessage("")}
-      />
-
       <ConfirmModal
         open={!!jobToDelete}
         title="Delete this job?"
@@ -678,7 +822,7 @@ export default function MyJobsPage() {
                 style={{
                   marginTop: 0,
                   marginBottom: 8,
-                  color: "var(--premium)",
+                  color: "var(--text)",
                   fontSize: isMobile ? 34 : "clamp(30px, 4vw, 44px)",
                   lineHeight: 1.05,
                   letterSpacing: "-0.05em",
@@ -793,10 +937,9 @@ export default function MyJobsPage() {
               borderRadius: isMobile ? 24 : 30,
               padding: isMobile ? 20 : 28,
               border: "1px solid rgba(255,90,31,0.18)",
-              background:
-                "radial-gradient(circle at 8% 6%, rgba(255,90,31,0.12), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.96))",
+              background: "var(--card)",
               boxShadow:
-                "0 40px 100px rgba(0,0,0,0.35), 0 18px 44px rgba(255,90,31,0.12)",
+                "0 40px 100px rgba(0,0,0,0.45), 0 18px 44px rgba(255,90,31,0.12)",
             }}
           >
             <div
@@ -820,8 +963,8 @@ export default function MyJobsPage() {
                 height: 44,
                 borderRadius: 999,
                 border: "1px solid rgba(255,90,31,0.16)",
-                background: "rgba(255,255,255,0.88)",
-                color: "var(--premium)",
+                background: "var(--card-soft)",
+                color: "var(--text)",
                 fontSize: 24,
                 fontWeight: 500,
                 cursor: "pointer",
@@ -837,7 +980,7 @@ export default function MyJobsPage() {
               style={{
                 marginTop: 14,
                 paddingRight: 50,
-                color: "var(--premium)",
+                color: "var(--text)",
               }}
             >
               {editingJob.title}
@@ -936,22 +1079,22 @@ export default function MyJobsPage() {
               >
                 <label className="label">
                   Salary type
-                  <select
-                    className="select"
-                    style={formValueStyle}
+                  <EditDropdown
+                    dropdownKey="salaryType"
                     value={editingJob.salary_type}
-                    onChange={(event) =>
+                    options={[
+                      { label: "Per hour", value: "hour" },
+                      { label: "Per day", value: "day" },
+                      { label: "Per week", value: "week" },
+                      { label: "Per month", value: "month" },
+                    ]}
+                    onChange={(value) =>
                       updateEditField(
                         "salary_type",
-                        event.target.value as JobWithDetails["salary_type"]
+                        value as JobWithDetails["salary_type"]
                       )
                     }
-                  >
-                    <option value="hour">Per hour</option>
-                    <option value="day">Per day</option>
-                    <option value="week">Per week</option>
-                    <option value="month">Per month</option>
-                  </select>
+                  />
                 </label>
 
                 <label className="label">
@@ -1055,20 +1198,20 @@ export default function MyJobsPage() {
 
                 <label className="label">
                   Status
-                  <select
-                    className="select"
-                    style={formValueStyle}
+                  <EditDropdown
+                    dropdownKey="status"
                     value={editingJob.status}
-                    onChange={(event) =>
+                    options={[
+                      { label: "Open", value: "open" },
+                      { label: "Closed", value: "closed" },
+                    ]}
+                    onChange={(value) =>
                       updateEditField(
                         "status",
-                        event.target.value as JobWithDetails["status"]
+                        value as JobWithDetails["status"]
                       )
                     }
-                  >
-                    <option value="open">Open</option>
-                    <option value="closed">Closed</option>
-                  </select>
+                  />
                 </label>
               </div>
 

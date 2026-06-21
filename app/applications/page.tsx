@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
 
@@ -34,10 +34,9 @@ type ApplicationView = ApplicationRow & {
 type StatusFilter = "all" | ApplicationStatus;
 
 const cardSoftStyle: CSSProperties = {
-  border: "1px solid rgba(255,90,31,0.14)",
-  background:
-    "radial-gradient(circle at 8% 8%, rgba(255,90,31,0.08), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
-  boxShadow: "0 24px 60px rgba(17,24,39,0.08)",
+  border: "1px solid var(--border)",
+  background: "var(--card)",
+  boxShadow: "var(--shadow)",
 };
 
 const actionButtonStyle: CSSProperties = {
@@ -117,14 +116,13 @@ function getStatusVisual(status: ApplicationStatus) {
 }
 
 export default function ApplicationsPage() {
+  const { showToast } = useToast();
+
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [applications, setApplications] = useState<ApplicationView[]>([]);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  const toastType = message.includes("marked") ? "success" : "error";
 
   useEffect(() => {
     loadPage();
@@ -151,7 +149,6 @@ export default function ApplicationsPage() {
 
   async function loadPage() {
     setLoading(true);
-    setMessage("");
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -169,7 +166,7 @@ export default function ApplicationsPage() {
       .single();
 
     if (profileError) {
-      setMessage(profileError.message);
+      showToast(profileError.message, "error");
       setLoading(false);
       return;
     }
@@ -194,7 +191,7 @@ export default function ApplicationsPage() {
       .order("created_at", { ascending: false });
 
     if (appError) {
-      setMessage(appError.message);
+      showToast(appError.message, "error");
       return;
     }
 
@@ -210,7 +207,7 @@ export default function ApplicationsPage() {
         .in("id", jobIds);
 
       if (jobError) {
-        setMessage(jobError.message);
+        showToast(jobError.message, "error");
         return;
       }
 
@@ -240,7 +237,7 @@ export default function ApplicationsPage() {
     );
 
     if (jobError) {
-      setMessage(jobError.message);
+      showToast(jobError.message, "error");
       return;
     }
 
@@ -259,7 +256,7 @@ export default function ApplicationsPage() {
       .order("created_at", { ascending: false });
 
     if (appError) {
-      setMessage(appError.message);
+      showToast(appError.message, "error");
       return;
     }
 
@@ -275,7 +272,7 @@ export default function ApplicationsPage() {
         .in("id", seekerIds);
 
       if (seekerError) {
-        setMessage(seekerError.message);
+        showToast(seekerError.message, "error");
         return;
       }
 
@@ -292,7 +289,6 @@ export default function ApplicationsPage() {
   }
 
   async function updateStatus(applicationId: string, status: ApplicationStatus) {
-    setMessage("");
     setUpdatingId(applicationId);
 
     const { error } = await supabase
@@ -303,7 +299,7 @@ export default function ApplicationsPage() {
     setUpdatingId(null);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
@@ -312,21 +308,21 @@ export default function ApplicationsPage() {
     );
 
     if (status === "shortlisted") {
-      setMessage("Application shortlisted successfully.");
+      showToast("Application shortlisted successfully.", "success");
       return;
     }
 
     if (status === "rejected") {
-      setMessage("Application rejected successfully.");
+      showToast("Application rejected successfully.", "success");
       return;
     }
 
     if (status === "hired") {
-      setMessage("Application marked as hired successfully.");
+      showToast("Application marked as hired successfully.", "success");
       return;
     }
 
-    setMessage(`Application marked as ${status}.`);
+    showToast(`Application marked as ${status}.`, "success");
   }
 
   function statusLabel(status: ApplicationStatus) {
@@ -422,8 +418,8 @@ export default function ApplicationsPage() {
             : "1px solid rgba(255,90,31,0.14)",
           borderRadius: 24,
           background: active
-            ? "radial-gradient(circle at 12% 10%, rgba(255,90,31,0.18), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.96))"
-            : "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.9))",
+            ? "var(--surface)"
+            : "var(--card)",
           boxShadow: active
             ? "0 20px 50px rgba(255,90,31,0.12), 0 12px 28px rgba(17,24,39,0.08)"
             : "0 14px 34px rgba(17,24,39,0.055)",
@@ -474,8 +470,8 @@ export default function ApplicationsPage() {
         style={{
           padding: 15,
           borderRadius: 18,
-          background: "rgba(255,255,255,0.78)",
-          border: "1px solid rgba(255,90,31,0.12)",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
           boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
         }}
       >
@@ -518,8 +514,8 @@ export default function ApplicationsPage() {
         style={{
           padding: 16,
           borderRadius: 20,
-          background: "rgba(255,255,255,0.72)",
-          border: "1px solid rgba(255,90,31,0.1)",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
           boxShadow: "0 10px 24px rgba(17,24,39,0.035)",
         }}
       >
@@ -581,7 +577,7 @@ export default function ApplicationsPage() {
                 textAlign: "center",
                 background: active
                   ? visual.background
-                  : "rgba(255,255,255,0.62)",
+                  : "var(--surface)",
                 border: active
                   ? visual.border
                   : "1px solid rgba(17,24,39,0.08)",
@@ -671,12 +667,6 @@ export default function ApplicationsPage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={toastType}
-        onClose={() => setMessage("")}
-      />
-
       <section className="applications-hero">
         <div>
           <span className="badge">Applications</span>
@@ -827,7 +817,9 @@ export default function ApplicationsPage() {
                         color: "var(--muted)",
                       }}
                     >
-                      <strong>{app.job?.company_name || "Unknown company"}</strong>
+                      <strong>
+                        {app.job?.company_name || "Unknown company"}
+                      </strong>
                       {" · "}
                       {app.job?.location || "Location not available"}
                     </p>
@@ -837,8 +829,8 @@ export default function ApplicationsPage() {
                     style={{
                       padding: "12px 14px",
                       borderRadius: 18,
-                      background: "rgba(255,255,255,0.74)",
-                      border: "1px solid rgba(255,90,31,0.1)",
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
                       minWidth: 140,
                     }}
                   >
@@ -906,8 +898,8 @@ export default function ApplicationsPage() {
                         marginBottom: 0,
                         padding: "14px 16px",
                         borderRadius: 18,
-                        background: "rgba(255,255,255,0.72)",
-                        border: "1px solid rgba(255,90,31,0.1)",
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
                         color: "var(--muted)",
                         fontWeight: 650,
                         lineHeight: 1.55,
@@ -932,9 +924,8 @@ export default function ApplicationsPage() {
                         gap: 14,
                         padding: 16,
                         borderRadius: 22,
-                        background:
-                          "radial-gradient(circle at 8% 12%, rgba(255,90,31,0.1), transparent 32%), rgba(255,255,255,0.76)",
-                        border: "1px solid rgba(255,90,31,0.14)",
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
                         marginBottom: 16,
                       }}
                     >

@@ -15,6 +15,7 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   async function loadUser() {
     setLoading(true);
@@ -39,6 +40,26 @@ export default function Navbar() {
 
     setRole((profileData?.role as UserRole) ?? null);
     setLoading(false);
+  }
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("hustleup-theme");
+
+    if (savedTheme === "dark") {
+      setTheme("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      setTheme("light");
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme = theme === "light" ? "dark" : "light";
+
+    setTheme(nextTheme);
+    localStorage.setItem("hustleup-theme", nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
   }
 
   useEffect(() => {
@@ -143,7 +164,7 @@ export default function Navbar() {
   const logoStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
     color: "var(--premium)",
     fontWeight: 950,
     fontSize: 22,
@@ -153,17 +174,10 @@ export default function Navbar() {
     flexShrink: 0,
   };
 
-  const logoMarkStyle: CSSProperties = {
-    width: 34,
-    height: 34,
-    borderRadius: 13,
-    display: "grid",
-    placeItems: "center",
-    background: "var(--brand-gradient)",
-    color: "white",
-    boxShadow: "0 14px 30px rgba(255,90,31,0.2)",
-    fontSize: 16,
-    fontWeight: 950,
+  const logoImageStyle: CSSProperties = {
+    height: 40,
+    width: "auto",
+    display: "block",
     flexShrink: 0,
   };
 
@@ -223,6 +237,26 @@ export default function Navbar() {
       "0 40px 100px rgba(17,24,39,0.32), 0 16px 40px rgba(255,90,31,0.12)",
   };
 
+  const themeButtonStyle: CSSProperties = {
+    minHeight: isMobile ? 50 : 42,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: isMobile ? 16 : 14,
+    padding: "0 14px",
+    fontSize: isMobile ? 18 : 16,
+    fontWeight: 900,
+    fontFamily: "inherit",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    border: "1px solid rgba(255,90,31,0.18)",
+    color: "var(--premium)",
+    background: "rgba(255,255,255,0.84)",
+    boxShadow: "0 8px 18px rgba(17,24,39,0.035)",
+    width: isMobile ? "100%" : "auto",
+    flexShrink: 0,
+  };
+
   const logoutStyle: CSSProperties = {
     minHeight: isMobile ? 50 : 42,
     display: "inline-flex",
@@ -271,7 +305,11 @@ export default function Navbar() {
       <header style={headerStyle}>
         <div style={innerStyle}>
           <Link href="/" style={logoStyle} onClick={closeMenu}>
-            <span style={logoMarkStyle}>H</span>
+            <img
+              src="/hustleup-icon.png"
+              alt="HustleUp"
+              style={logoImageStyle}
+            />
             <span>HustleUp</span>
           </Link>
 
@@ -284,6 +322,15 @@ export default function Navbar() {
           </button>
 
           <nav style={navStyle}>
+            <button
+              type="button"
+              style={themeButtonStyle}
+              onClick={toggleTheme}
+              aria-label="Toggle dark mode"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+
             <Link href="/jobs" style={navLinkStyle("/jobs")} onClick={closeMenu}>
               Jobs
             </Link>

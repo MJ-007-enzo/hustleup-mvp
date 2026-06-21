@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import ConfirmModal from "@/components/ConfirmModal";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile, Tier, WaitlistItem } from "@/lib/types";
 
@@ -279,11 +279,12 @@ function TableWrap({ children }: { children: ReactNode }) {
 }
 
 export default function AdminPage() {
+  const { showToast } = useToast();
+
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([]);
   const [users, setUsers] = useState<UpgradedProfile[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -295,14 +296,6 @@ export default function AdminPage() {
   const [rejectingWaitlistId, setRejectingWaitlistId] = useState<string | null>(
     null
   );
-
-  const toastType =
-    message.includes("upgraded") ||
-    message.includes("verified") ||
-    message.includes("unverified") ||
-    message.includes("Waitlist user")
-      ? "success"
-      : "error";
 
   useEffect(() => {
     function checkMobile() {
@@ -348,12 +341,8 @@ export default function AdminPage() {
     return Math.round((filled / fields.length) * 100);
   }
 
-  async function loadAdmin(clearMessage = true) {
+  async function loadAdmin() {
     setLoading(true);
-
-    if (clearMessage) {
-      setMessage("");
-    }
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -369,7 +358,7 @@ export default function AdminPage() {
       .single();
 
     if (profileError) {
-      setMessage(profileError.message);
+      showToast(profileError.message, "error");
       setLoading(false);
       return;
     }
@@ -404,8 +393,6 @@ export default function AdminPage() {
   }
 
   async function updateWaitlist(id: string, status: "approved" | "rejected") {
-    setMessage("");
-
     if (status === "rejected") {
       setRejectingWaitlistId(id);
     }
@@ -418,18 +405,17 @@ export default function AdminPage() {
     setRejectingWaitlistId(null);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
     setWaitlistToReject(null);
-    await loadAdmin(false);
-    setMessage(`Waitlist user ${status}.`);
+    await loadAdmin();
+    showToast(`Waitlist user ${status}.`, "success");
   }
 
   async function upgradeUser(id: string, tier: Tier) {
     setUpdatingUserId(id);
-    setMessage("");
 
     const { error } = await supabase
       .from("profiles")
@@ -439,17 +425,16 @@ export default function AdminPage() {
     setUpdatingUserId(null);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
-    await loadAdmin(false);
-    setMessage(`User upgraded to ${tier}.`);
+    await loadAdmin();
+    showToast(`User upgraded to ${tier}.`, "success");
   }
 
   async function toggleVerified(user: UpgradedProfile) {
     setUpdatingUserId(user.id);
-    setMessage("");
 
     const { error } = await supabase
       .from("profiles")
@@ -459,17 +444,18 @@ export default function AdminPage() {
     setUpdatingUserId(null);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
     setUserToUnverify(null);
-    await loadAdmin(false);
+    await loadAdmin();
 
-    setMessage(
+    showToast(
       user.is_verified
         ? `${user.full_name || user.email} is now unverified.`
-        : `${user.full_name || user.email} is now verified.`
+        : `${user.full_name || user.email} is now verified.`,
+      "success"
     );
   }
 
@@ -484,12 +470,6 @@ export default function AdminPage() {
   if (profile?.role !== "admin") {
     return (
       <main className="container">
-        <Toast
-          message={message}
-          type={toastType}
-          onClose={() => setMessage("")}
-        />
-
         <span className="badge">Admin</span>
         <h1>Access blocked.</h1>
         <p>
@@ -501,12 +481,6 @@ export default function AdminPage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={toastType}
-        onClose={() => setMessage("")}
-      />
-
       <ConfirmModal
         open={!!userToUnverify}
         title="Unverify this user?"

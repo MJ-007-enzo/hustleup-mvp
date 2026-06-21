@@ -2,7 +2,7 @@
 
 import type { CSSProperties, FormEvent } from "react";
 import { useState } from "react";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 
 type AuthMode = "login" | "signup";
@@ -53,23 +53,18 @@ function capitalizeWords(value: string) {
 }
 
 export default function AuthPage() {
+  const { showToast } = useToast();
+
   const [mode, setMode] = useState<AuthMode>("signup");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<SignupRole>("job_seeker");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"success" | "error" | "info">(
-    "info"
-  );
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setMessage("");
-    setMessageType("info");
 
     const cleanEmail = email.trim().toLowerCase();
 
@@ -88,14 +83,13 @@ export default function AuthPage() {
       setBusy(false);
 
       if (error) {
-        setMessageType("error");
-        setMessage(error.message);
+        showToast(error.message, "error");
         return;
       }
 
-      setMessageType("success");
-      setMessage(
-        "Account created successfully. If email confirmation is enabled, verify your email first. Otherwise, go to Dashboard."
+      showToast(
+        "Account created successfully. If email confirmation is enabled, verify your email first. Otherwise, go to Dashboard.",
+        "success"
       );
       return;
     }
@@ -108,8 +102,7 @@ export default function AuthPage() {
     setBusy(false);
 
     if (error) {
-      setMessageType("error");
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
@@ -118,8 +111,6 @@ export default function AuthPage() {
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
-    setMessage("");
-    setMessageType("info");
   }
 
   function RoleCard({
@@ -228,12 +219,6 @@ export default function AuthPage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={messageType}
-        onClose={() => setMessage("")}
-      />
-
       <section
         style={{
           display: "grid",

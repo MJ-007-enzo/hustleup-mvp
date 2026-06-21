@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile, Tier } from "@/lib/types";
 
@@ -63,9 +63,10 @@ function BenefitItem({ children }: { children: string }) {
 }
 
 export default function PricingPage() {
+  const { showToast } = useToast();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
 
   useEffect(() => {
@@ -112,7 +113,6 @@ export default function PricingPage() {
   }
 
   async function chooseBeginner() {
-    setMessage("");
     setBusyTier("beginner");
 
     const { data: authData } = await supabase.auth.getUser();
@@ -130,16 +130,15 @@ export default function PricingPage() {
     setBusyTier(null);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
-    setMessage("Your plan has been updated to beginner.");
+    showToast("Your plan has been updated to beginner.", "success");
     loadProfile();
   }
 
   async function startPayment(tier: PaidTier) {
-    setMessage("");
     setBusyTier(tier);
 
     const { data: sessionData } = await supabase.auth.getSession();
@@ -154,8 +153,9 @@ export default function PricingPage() {
 
     if (!scriptLoaded) {
       setBusyTier(null);
-      setMessage(
-        "Razorpay checkout failed to load. Check your internet connection."
+      showToast(
+        "Razorpay checkout failed to load. Check your internet connection.",
+        "error"
       );
       return;
     }
@@ -173,7 +173,7 @@ export default function PricingPage() {
 
     if (!orderResponse.ok) {
       setBusyTier(null);
-      setMessage(orderData.error || "Could not create Razorpay order.");
+      showToast(orderData.error || "Could not create Razorpay order.", "error");
       return;
     }
 
@@ -206,17 +206,20 @@ export default function PricingPage() {
         setBusyTier(null);
 
         if (!verifyResponse.ok) {
-          setMessage(verifyData.error || "Payment verification failed.");
+          showToast(verifyData.error || "Payment verification failed.", "error");
           return;
         }
 
-        setMessage(`Payment successful. Your plan is now ${verifyData.tier}.`);
+        showToast(
+          `Payment successful. Your plan is now ${verifyData.tier}.`,
+          "success"
+        );
         loadProfile();
       },
       modal: {
         ondismiss: function () {
           setBusyTier(null);
-          setMessage("Payment cancelled.");
+          showToast("Payment cancelled.", "info");
         },
       },
     };
@@ -311,16 +314,6 @@ export default function PricingPage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={
-          message.includes("successful") || message.includes("updated")
-            ? "success"
-            : "error"
-        }
-        onClose={() => setMessage("")}
-      />
-
       <span className="badge">Pricing</span>
       <h1>Choose your HustleUp plan.</h1>
 

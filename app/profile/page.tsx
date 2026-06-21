@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
@@ -217,12 +217,8 @@ function PlanPowerItem({
         gap: 10,
         padding: "10px 11px",
         borderRadius: 15,
-        background: locked
-          ? "linear-gradient(180deg, #fff7f7, #fff1f1)"
-          : "rgba(255,255,255,0.8)",
-        border: locked
-          ? "1px solid rgba(239,68,68,0.18)"
-          : "1px solid rgba(255,90,31,0.12)",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
         boxShadow: "0 10px 22px rgba(17,24,39,0.035)",
       }}
     >
@@ -272,12 +268,9 @@ function PlanPowerCard({ tier }: { tier?: string | null }) {
         borderRadius: 22,
         background:
           isPremium || isAdvanced
-            ? "radial-gradient(circle at 12% 10%, rgba(255,90,31,0.16), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,250,246,0.86))"
-            : "linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,250,246,0.84))",
-        border:
-          isPremium || isAdvanced
-            ? "1px solid rgba(255,90,31,0.22)"
-            : "1px solid rgba(255,90,31,0.14)",
+            ? "radial-gradient(circle at 12% 10%, rgba(255,90,31,0.12), transparent 32%), var(--card)"
+            : "var(--card)",
+        border: "1px solid var(--border)",
         boxShadow:
           isPremium || isAdvanced
             ? "0 20px 48px rgba(255,90,31,0.1), 0 12px 28px rgba(17,24,39,0.06)"
@@ -399,9 +392,8 @@ function PlanPowerCard({ tier }: { tier?: string | null }) {
               borderRadius: 15,
               padding: "0 16px",
               fontWeight: 850,
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
-              border: "1px solid rgba(255,90,31,0.16)",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
               color: "var(--premium)",
               boxShadow: "0 12px 26px rgba(17,24,39,0.06)",
             }}
@@ -415,6 +407,8 @@ function PlanPowerCard({ tier }: { tier?: string | null }) {
 }
 
 export default function ProfilePage() {
+  const { showToast } = useToast();
+
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
 
   const [fullName, setFullName] = useState("");
@@ -435,7 +429,6 @@ export default function ProfilePage() {
 
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
 
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -447,8 +440,6 @@ export default function ProfilePage() {
 
   const availability = `${startTime} to ${endTime}`;
   const expectedSalary = `₹${salaryText || "50"}/${salaryPeriod}`;
-
-  const toastType = message.includes("successfully") ? "success" : "error";
 
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -608,7 +599,7 @@ export default function ProfilePage() {
     setLoading(false);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
@@ -638,7 +629,6 @@ export default function ProfilePage() {
     const finalExpectedSalary = `₹${finalSalaryText}/${salaryPeriod}`;
 
     setSaving(true);
-    setMessage("");
 
     const { error } = await supabase
       .from("profiles")
@@ -659,13 +649,13 @@ export default function ProfilePage() {
     setSaving(false);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
     setLocation(cleanedLocation);
     setSalaryText(finalSalaryText);
-    setMessage("Profile updated successfully.");
+    showToast("Profile updated successfully.", "success");
     loadProfile();
   }
 
@@ -872,12 +862,6 @@ export default function ProfilePage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={toastType}
-        onClose={() => setMessage("")}
-      />
-
       <section className="profile-hero">
         <div>
           <span className="badge">Profile</span>
@@ -887,13 +871,25 @@ export default function ProfilePage() {
             skills, availability, experience, and contact details.
           </p>
         </div>
-
-        <div className="profile-score-card">
-          <div className="profile-score-ring">
-            <span>{completion}%</span>
-          </div>
+<div className="profile-score-card">
+  <div
+    className="profile-score-ring"
+    style={{
+      background: `
+        radial-gradient(circle at center, var(--card) 53%, transparent 57%),
+        conic-gradient(
+          var(--brand) 0deg,
+          var(--warning) ${completion * 3.6}deg,
+          #eadfd4 ${completion * 3.6}deg
+        )
+      `,
+    }}
+  >
+    <span>{completion}%</span>
+  </div>
 
           <div>
+
             <span className="tag">{completionLabel()} profile</span>
             <h3>Profile completion</h3>
             <p>
@@ -911,8 +907,7 @@ export default function ProfilePage() {
           style={{
             overflow: "hidden",
             border: "1px solid rgba(255, 90, 31, 0.18)",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.97), rgba(255,248,241,0.94))",
+            background: "var(--card)",
             boxShadow:
               "0 30px 80px rgba(17,24,39,0.12), 0 12px 34px rgba(255,90,31,0.08)",
           }}

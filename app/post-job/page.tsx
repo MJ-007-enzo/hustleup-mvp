@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
@@ -185,6 +185,8 @@ function capitalizeSentences(value: string) {
 }
 
 export default function PostJobPage() {
+  const { showToast } = useToast();
+
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
@@ -210,7 +212,6 @@ export default function PostJobPage() {
   const [salaryMotion, setSalaryMotion] = useState(false);
   const [timingMotion, setTimingMotion] = useState(false);
 
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const holdDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -218,7 +219,6 @@ export default function PostJobPage() {
 
   const duration = `${startTime} to ${endTime}`;
   const salaryAmount = getNumber(salaryText);
-  const toastType = message.includes("successfully") ? "success" : "error";
 
   const citySuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -274,7 +274,7 @@ export default function PostJobPage() {
       .single();
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       setCheckingAccess(false);
       return;
     }
@@ -359,7 +359,7 @@ export default function PostJobPage() {
       <div
         style={{
           position: "relative",
-          zIndex: isOpen ? 900 : 1,
+          zIndex: isOpen ? 9999 : 1,
         }}
         onClick={(event) => event.stopPropagation()}
       >
@@ -377,8 +377,7 @@ export default function PostJobPage() {
               ? "1px solid rgba(255, 90, 31, 0.55)"
               : "1px solid var(--line-warm)",
             borderRadius: 16,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,246,0.94))",
+            background: "var(--card)",
             color: "var(--premium)",
             padding: "0 14px",
             fontSize: 16,
@@ -401,7 +400,7 @@ export default function PostJobPage() {
               borderRadius: 999,
               display: "grid",
               placeItems: "center",
-              background: isOpen ? "var(--brand-soft)" : "#ffffff",
+              background: isOpen ? "var(--brand-soft)" : "var(--card-soft)",
               color: isOpen ? "var(--brand-dark)" : "var(--muted)",
               border: "1px solid var(--line-warm)",
               transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -427,8 +426,7 @@ export default function PostJobPage() {
               overflowY: "auto",
               border: "1px solid var(--line-warm)",
               borderRadius: 18,
-              background:
-                "linear-gradient(180deg, #ffffff 0%, #fffaf6 100%)",
+              background: "var(--card)",
               boxShadow:
                 "0 28px 70px rgba(17, 24, 39, 0.18), 0 10px 24px rgba(255, 90, 31, 0.08)",
               padding: 8,
@@ -492,7 +490,6 @@ export default function PostJobPage() {
     event.preventDefault();
 
     setBusy(true);
-    setMessage("");
 
     const { data: authData } = await supabase.auth.getUser();
 
@@ -502,7 +499,7 @@ export default function PostJobPage() {
     }
 
     if (profile?.role !== "job_owner" && profile?.role !== "admin") {
-      setMessage("Only job owners and admins can post jobs.");
+      showToast("Only job owners and admins can post jobs.", "error");
       setBusy(false);
       return;
     }
@@ -511,7 +508,7 @@ export default function PostJobPage() {
     const finalSalaryAmount = salaryAmount || 50;
 
     if (!cleanedLocation) {
-      setMessage("Please select or enter a job location.");
+      showToast("Please select or enter a job location.", "error");
       setBusy(false);
       return;
     }
@@ -540,7 +537,7 @@ export default function PostJobPage() {
     setBusy(false);
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
@@ -563,7 +560,7 @@ export default function PostJobPage() {
     setContactNote("");
     setOpenDropdown(null);
 
-    setMessage("Job posted successfully.");
+    showToast("Job posted successfully.", "success");
   }
 
   if (checkingAccess) {
@@ -577,12 +574,6 @@ export default function PostJobPage() {
   if (profile?.role !== "job_owner" && profile?.role !== "admin") {
     return (
       <main className="container">
-        <Toast
-          message={message}
-          type={toastType}
-          onClose={() => setMessage("")}
-        />
-
         <span className="badge">Access blocked</span>
         <h1>You cannot post jobs.</h1>
 
@@ -606,12 +597,6 @@ export default function PostJobPage() {
 
   return (
     <main className="container">
-      <Toast
-        message={message}
-        type={toastType}
-        onClose={() => setMessage("")}
-      />
-
       <section className="grid grid-2">
         <div>
           <span className="badge">For job owners</span>
@@ -781,7 +766,7 @@ export default function PostJobPage() {
             style={{
               position: "relative",
               overflow: "visible",
-              zIndex: openDropdown === "city" ? 900 : 1,
+              zIndex: openDropdown === "city" ? 9999 : 1,
             }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -818,7 +803,7 @@ export default function PostJobPage() {
                   overflowY: "auto",
                   border: "1px solid var(--line-warm)",
                   borderRadius: "16px",
-                  background: "#ffffff",
+                  background: "var(--card)",
                   boxShadow: "0 24px 60px rgba(17, 24, 39, 0.18)",
                   padding: "8px",
                 }}

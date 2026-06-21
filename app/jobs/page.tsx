@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import Toast from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
 
@@ -84,22 +84,16 @@ function getCurrentMonthStartISO() {
 }
 
 function applicationLimitForTier(tier?: string | null) {
-  if (tier === "premium" || tier === "advanced") {
-    return null;
-  }
-
-  if (tier === "basic") {
-    return 12;
-  }
-
+  if (tier === "premium" || tier === "advanced") return null;
+  if (tier === "basic") return 12;
   return 5;
 }
 
 export default function JobsPage() {
+  const { showToast } = useToast();
+
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [message, setMessage] = useState("");
-  const [applicationMessage, setApplicationMessage] = useState("");
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobWithDetails | null>(null);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
@@ -114,15 +108,6 @@ export default function JobsPage() {
   const [openDropdown, setOpenDropdown] = useState<FilterKey | null>(null);
 
   const locations = tamilNaduCities;
-
-  const toastMessage = applicationMessage || message;
-
-  const toastType =
-    toastMessage.includes("successfully") ||
-    toastMessage.includes("unlocked") ||
-    toastMessage.includes("updated")
-      ? "success"
-      : "error";
 
   const jobTypes = useMemo(() => {
     const values = jobs
@@ -315,7 +300,7 @@ export default function JobsPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      setMessage(error.message);
+      showToast(error.message, "error");
       return;
     }
 
@@ -366,20 +351,20 @@ export default function JobsPage() {
 
   async function apply(job: JobWithDetails) {
     if (appliedJobIds.has(job.id)) {
-      setApplicationMessage("You already applied for this job.");
+      showToast("You already applied for this job.", "error");
       return;
     }
 
     if (!canApplyToJob(job)) {
-      setApplicationMessage(
+      showToast(
         job.is_premium
           ? "Premium applications require the Premium plan."
-          : "You cannot apply to this job right now."
+          : "You cannot apply to this job right now.",
+        "error"
       );
       return;
     }
 
-    setApplicationMessage("");
     setApplyingJobId(job.id);
 
     const { data: authData } = await supabase.auth.getUser();
@@ -391,8 +376,9 @@ export default function JobsPage() {
 
     if (isApplicationLimitReached) {
       setApplyingJobId(null);
-      setApplicationMessage(
-        `You reached your monthly application limit of ${monthlyApplicationLimit}. Upgrade your plan for more applications.`
+      showToast(
+        `You reached your monthly application limit of ${monthlyApplicationLimit}. Upgrade your plan for more applications.`,
+        "error"
       );
       return;
     }
@@ -414,9 +400,9 @@ export default function JobsPage() {
           return next;
         });
 
-        setApplicationMessage("You already applied for this job.");
+        showToast("You already applied for this job.", "error");
       } else {
-        setApplicationMessage(error.message);
+        showToast(error.message, "error");
       }
 
       return;
@@ -432,7 +418,7 @@ export default function JobsPage() {
       setMonthlyApplicationCount((previousCount) => previousCount + 1);
     }
 
-    setApplicationMessage("Application submitted successfully.");
+    showToast("Application submitted successfully.", "success");
     setSelectedJob(null);
   }
 
@@ -505,174 +491,73 @@ export default function JobsPage() {
   }
 
   function FilterDropdown({
-    label,
-    dropdownKey,
-    value,
-    options,
-    onChange,
-  }: {
-    label: string;
-    dropdownKey: FilterKey;
-    value: string;
-    options: DropdownOption[];
-    onChange: (value: string) => void;
-  }) {
-    const isOpen = openDropdown === dropdownKey;
+  label,
+  dropdownKey,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  dropdownKey: FilterKey;
+  value: string;
+  options: DropdownOption[];
+  onChange: (value: string) => void;
+}) {
+  const isOpen = openDropdown === dropdownKey;
 
-    return (
-      <div
-        className="label"
-        style={{
-          position: "relative",
-          zIndex: isOpen ? 100 : 1,
-        }}
-        onClick={(event) => event.stopPropagation()}
+  return (
+    <div
+      className="label jobs-filter-dropdown"
+      style={{
+        position: "relative",
+        zIndex: isOpen ? 9999 : 20,
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {label}
+
+      <button
+        type="button"
+        className="jobs-filter-select"
+        onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
       >
-        {label}
+        <span className="jobs-filter-selected">
+          {selectedLabel(options, value)}
+        </span>
 
-        <button
-          type="button"
-          onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
-          style={{
-            width: "100%",
-            minHeight: 52,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            border: isOpen
-              ? "1px solid rgba(255, 90, 31, 0.55)"
-              : "1px solid var(--line-warm)",
-            borderRadius: 18,
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,250,246,0.92))",
-            color: "var(--premium)",
-            padding: "0 15px",
-            fontSize: 15,
-            fontWeight: 850,
-            fontFamily: "inherit",
-            textAlign: "left",
-            cursor: "pointer",
-            boxShadow: isOpen
-              ? "0 0 0 4px rgba(255, 90, 31, 0.1), 0 16px 32px rgba(17, 24, 39, 0.08)"
-              : "0 10px 22px rgba(17, 24, 39, 0.04)",
-            transition:
-              "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
-          }}
-        >
-          <span
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {selectedLabel(options, value)}
-          </span>
+        <span className={`jobs-filter-arrow ${isOpen ? "open" : ""}`}>↓</span>
+      </button>
 
-          <span
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 999,
-              display: "grid",
-              placeItems: "center",
-              background: isOpen ? "var(--brand-soft)" : "#ffffff",
-              color: isOpen ? "var(--brand-dark)" : "var(--muted)",
-              border: "1px solid var(--line-warm)",
-              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-              transition:
-                "transform 0.18s ease, background 0.18s ease, color 0.18s ease",
-              flexShrink: 0,
-            }}
-          >
-            ↓
-          </span>
-        </button>
+      {isOpen && (
+        <div className="jobs-filter-menu">
+          {options.map((option) => {
+            const selected = option.value === value;
 
-        {isOpen && (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: "calc(100% + 8px)",
-              maxHeight: 260,
-              overflowY: "auto",
-              border: "1px solid var(--line-warm)",
-              borderRadius: 20,
-              background:
-                "linear-gradient(180deg, #ffffff 0%, #fffaf6 100%)",
-              boxShadow:
-                "0 28px 70px rgba(17, 24, 39, 0.18), 0 10px 24px rgba(255, 90, 31, 0.08)",
-              padding: 8,
-              animation: "menuDrop 0.16s ease both",
-            }}
-          >
-            {options.map((option) => {
-              const selected = option.value === value;
-
-              return (
-                <button
-                  type="button"
-                  key={option.value}
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpenDropdown(null);
-                  }}
-                  style={{
-                    width: "100%",
-                    minHeight: 42,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    border: 0,
-                    borderRadius: 14,
-                    background: selected ? "var(--brand-soft)" : "transparent",
-                    color: selected ? "var(--brand-dark)" : "var(--premium)",
-                    padding: "10px 12px",
-                    fontSize: 14,
-                    fontWeight: selected ? 950 : 800,
-                    fontFamily: "inherit",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition:
-                      "background 0.14s ease, color 0.14s ease, transform 0.14s ease",
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.background = selected
-                      ? "var(--brand-soft)"
-                      : "rgba(255, 90, 31, 0.07)";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.background = selected
-                      ? "var(--brand-soft)"
-                      : "transparent";
-                  }}
-                >
-                  <span>{option.label}</span>
-                  {selected && <span>✓</span>}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
+            return (
+              <button
+                type="button"
+                key={option.value}
+                className={`jobs-filter-option ${
+                  selected ? "selected" : ""
+                }`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpenDropdown(null);
+                }}
+              >
+                <span>{option.label}</span>
+                {selected && <span>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
   return (
     <main className="container">
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        onClose={() => {
-          setMessage("");
-          setApplicationMessage("");
-        }}
-      />
-
       <section className="jobs-hero">
         <div>
           <span className="badge">Open opportunities</span>
