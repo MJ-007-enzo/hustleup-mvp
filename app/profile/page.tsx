@@ -426,7 +426,16 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [experience, setExperience] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
+const [resumeFile, setResumeFile] = useState<File | null>(null);
+const [resumeUploading, setResumeUploading] = useState(false);
 
+const [resumeUrl, setResumeUrl] = useState("");
+const [resumeFilename, setResumeFilename] = useState("");
+function removeResume() {
+  setResumeFile(null);
+  setResumeUrl("");
+  setResumeFilename("");
+}
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
 
   const [loading, setLoading] = useState(true);
@@ -614,12 +623,51 @@ export default function ProfilePage() {
     setBio(profileData.bio || "");
     setExperience(profileData.experience || "");
     setPortfolioUrl(profileData.portfolio_url || "");
-
+setResumeUrl(profileData.resume_url || "");
+setResumeFilename(profileData.resume_filename || "");
     parseAvailability(profileData.availability);
     parseExpectedSalary(profileData.expected_salary);
   }
 
   async function saveProfile(event: FormEvent) {
+    async function uploadResume(file: File) {
+  if (!profile) return null;
+
+  try {
+    setResumeUploading(true);
+
+    const fileExt = file.name.split(".").pop();
+
+    const filePath = `${profile.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("resumes")
+      .upload(filePath, file, {
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from("resumes")
+      .getPublicUrl(filePath);
+
+    setResumeUrl(data.publicUrl);
+    setResumeFilename(file.name);
+
+    return {
+      url: data.publicUrl,
+      filename: file.name,
+    };
+  } catch (error: any) {
+    showToast(error.message, "error");
+    return null;
+  } finally {
+    setResumeUploading(false);
+  }
+}
     event.preventDefault();
 
     if (!profile) return;
@@ -629,6 +677,12 @@ export default function ProfilePage() {
     const finalExpectedSalary = `₹${finalSalaryText}/${salaryPeriod}`;
 
     setSaving(true);
+
+let uploadedResume = null;
+
+if (resumeFile) {
+  uploadedResume = await uploadResume(resumeFile);
+}
 
     const { error } = await supabase
       .from("profiles")
@@ -643,6 +697,8 @@ export default function ProfilePage() {
         bio,
         experience,
         portfolio_url: portfolioUrl,
+        resume_url: uploadedResume?.url || resumeUrl,
+resume_filename: uploadedResume?.filename || resumeFilename,
       })
       .eq("id", profile.id);
 
@@ -1366,7 +1422,161 @@ export default function ProfilePage() {
               placeholder="Example: LinkedIn, resume, portfolio link"
             />
           </label>
+<div
+  style={{
+    display: "grid",
+    gap: "12px",
+    marginTop: "12px",
+  }}
+>
+  <label className="section-label">
+    Resume (Optional)
+  </label>
+</div>
+  <div
+  style={{
+    display: "grid",
+    gap: "12px",
+    marginTop: "12px",
+  }}
+>
 
+  <div
+    style={{
+      border: "1px dashed rgba(255,90,31,0.25)",
+      borderRadius: "20px",
+      padding: "20px",
+      background: "var(--card)",
+      display: "grid",
+      gap: "14px",
+    }}
+  >
+    <input
+      id="resume-upload"
+      type="file"
+      accept=".pdf,.doc,.docx"
+      style={{ display: "none" }}
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        const allowed = [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ];
+
+        if (!allowed.includes(file.type)) {
+          showToast(
+            "Only PDF or DOC/DOCX files allowed",
+            "error"
+          );
+          return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          showToast(
+            "Resume must be under 5MB",
+            "error"
+          );
+          return;
+        }
+
+        setResumeFile(file);
+      }}
+    />
+
+    {!resumeFile && !resumeFilename && (
+      <label
+        htmlFor="resume-upload"
+        className="btn"
+        style={{
+          width: "fit-content",
+          cursor: "pointer",
+        }}
+      >
+        📄 Upload Resume
+      </label>
+    )}
+
+    {(resumeFile || resumeFilename) && (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontWeight: 800,
+              color: "var(--premium)",
+            }}
+          >
+            📄 {resumeFile?.name || resumeFilename}
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "var(--muted)",
+              marginTop: "4px",
+            }}
+          >
+            Resume ready
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={removeResume}
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "999px",
+            border: "1px solid rgba(239,68,68,0.25)",
+            background: "rgba(239,68,68,0.08)",
+            color: "#ef4444",
+            cursor: "pointer",
+            fontSize: "18px",
+            fontWeight: 900,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    )}
+
+    {resumeUploading && (
+      <div
+        style={{
+          color: "var(--brand)",
+          fontWeight: 700,
+        }}
+      >
+        Uploading resume...
+      </div>
+    )}
+
+    {resumeUrl && (
+      <a
+        href={resumeUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="btn"
+      >
+        View Uploaded Resume
+      </a>
+    )}
+  </div>
+</div>
           <button className="btn btn-primary" disabled={saving}>
             {saving ? "Saving..." : "Save profile"}
           </button>

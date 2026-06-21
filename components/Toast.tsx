@@ -50,16 +50,16 @@ export default function Toast({
         alignItems: "center",
         gap: "12px",
         background: isSuccess
-          ? "linear-gradient(180deg, #ecfdf5, #d1fae5)"
-          : isError
-            ? "linear-gradient(180deg, #fff1f2, #fee2e2)"
-            : "linear-gradient(180deg, #ffffff, #fff7ed)",
-        border: isSuccess
-          ? "1px solid #86efac"
-          : isError
-            ? "1px solid #fca5a5"
-            : "1px solid #fed7aa",
-        color: isSuccess ? "#047857" : isError ? "#b91c1c" : "#9a3412",
+  ? "linear-gradient(135deg, rgba(6,78,59,0.98), rgba(4,120,87,0.98))"
+  : isError
+    ? "linear-gradient(135deg, rgba(69,10,10,0.98), rgba(127,29,29,0.98))"
+    : "linear-gradient(135deg, rgba(17,24,39,0.98), rgba(31,41,55,0.98))",
+       border: isSuccess
+  ? "1px solid rgba(16,185,129,0.35)"
+  : isError
+    ? "1px solid rgba(239,68,68,0.35)"
+    : "1px solid rgba(255,90,31,0.25)",
+      color: "#ffffff",
         boxShadow:
           "0 34px 100px rgba(0,0,0,0.32), 0 14px 34px rgba(17,24,39,0.18)",
         backdropFilter: "blur(18px)",
@@ -75,7 +75,7 @@ export default function Toast({
           placeItems: "center",
           flexShrink: 0,
           fontWeight: 950,
-          background: "rgba(255,255,255,0.78)",
+         background: "rgba(255,255,255,0.08)",
           color: "inherit",
           boxShadow: "0 8px 20px rgba(17,24,39,0.08)",
         }}
@@ -102,8 +102,8 @@ export default function Toast({
           width: "32px",
           height: "32px",
           borderRadius: "999px",
-          border: "1px solid rgba(0,0,0,0.08)",
-          background: "rgba(255,255,255,0.78)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.08)",
           color: "inherit",
           fontSize: "20px",
           fontWeight: 800,

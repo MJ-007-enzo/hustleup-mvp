@@ -364,7 +364,13 @@ export default function JobsPage() {
       );
       return;
     }
-
+if (job.require_resume && !profile?.resume_url) {
+  showToast(
+    "This job requires a resume. Please upload one in your profile first.",
+    "error"
+  );
+  return;
+}
     setApplyingJobId(job.id);
 
     const { data: authData } = await supabase.auth.getUser();
@@ -384,11 +390,14 @@ export default function JobsPage() {
     }
 
     const { error } = await supabase.from("applications").insert({
-      job_id: job.id,
-      seeker_id: authData.user.id,
-      message: "I am interested in this opportunity.",
-      status: "applied",
-    });
+  job_id: job.id,
+  seeker_id: authData.user.id,
+  message: "I am interested in this opportunity.",
+  status: "applied",
+
+  resume_url: profile?.resume_url || null,
+  resume_filename: profile?.resume_filename || null,
+});
 
     setApplyingJobId(null);
 

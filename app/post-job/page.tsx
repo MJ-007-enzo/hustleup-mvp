@@ -189,7 +189,7 @@ export default function PostJobPage() {
 
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
-
+const [requireResume, setRequireResume] = useState(false);
   const [title, setTitle] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [location, setLocation] = useState("");
@@ -524,6 +524,7 @@ export default function PostJobPage() {
       salary_amount: finalSalaryAmount,
       requirements,
       is_premium: isPremium,
+      require_resume: requireResume,
       status: "open",
 
       responsibilities,
@@ -551,7 +552,7 @@ export default function PostJobPage() {
     setSalaryText("500");
     setRequirements("");
     setIsPremium(false);
-
+setRequireResume(false);
     setResponsibilities("");
     setWhoCanApply("");
     setBenefits("");
@@ -1001,7 +1002,44 @@ export default function PostJobPage() {
               placeholder="Example: Basic communication, punctuality, customer handling"
             />
           </label>
+          <div
+  style={{
+    padding: "16px",
+    borderRadius: "18px",
+    border: "1px solid var(--border)",
+    background: "var(--card)",
+    marginTop: "4px",
+  }}
+>
+  <label
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      cursor: "pointer",
+      fontWeight: 800,
+      color: "var(--premium)",
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={requireResume}
+      onChange={(e) => setRequireResume(e.target.checked)}
+    />
 
+    Require Resume For Applications
+  </label>
+
+  <p
+    style={{
+      margin: "8px 0 0",
+      color: "var(--muted)",
+      fontSize: "14px",
+    }}
+  >
+    Applicants must have a resume uploaded in their profile before applying.
+  </p>
+</div>
           <span className="tag">Full job details</span>
 
           <label className="label">

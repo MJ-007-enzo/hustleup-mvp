@@ -389,6 +389,7 @@ export default function MyJobsPage() {
         salary_amount: editingJob.salary_amount,
         requirements: editingJob.requirements,
         is_premium: editingJob.is_premium,
+        require_resume: editingJob.require_resume,
         status: editingJob.status,
         responsibilities: editingJob.responsibilities,
         who_can_apply: editingJob.who_can_apply,
@@ -911,36 +912,22 @@ export default function MyJobsPage() {
         </section>
       )}
 
-      {editingJob && (
-        <div
+    {editingJob && (
+  <div
+    className="job-modal-backdrop"
           onClick={() => setEditingJob(null)}
           style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "grid",
-            placeItems: "center",
+            
+        
             padding: isMobile ? 12 : 18,
-            background: "rgba(17,24,39,0.72)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
+      
           }}
         >
           <form
-            onSubmit={saveJob}
+  className="job-modal edit-job-modal"
+  onSubmit={saveJob}
             onClick={(event) => event.stopPropagation()}
-            style={{
-              position: "relative",
-              width: "min(920px, 100%)",
-              maxHeight: "88vh",
-              overflowY: "auto",
-              borderRadius: isMobile ? 24 : 30,
-              padding: isMobile ? 20 : 28,
-              border: "1px solid rgba(255,90,31,0.18)",
-              background: "var(--card)",
-              boxShadow:
-                "0 40px 100px rgba(0,0,0,0.45), 0 18px 44px rgba(255,90,31,0.12)",
-            }}
+          
           >
             <div
               style={{
