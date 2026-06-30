@@ -722,6 +722,7 @@ export default function HomePage() {
             job posting, applications, user roles, tiers, and admin management.
           </p>
 
+
           <div
             style={{
               display: "grid",

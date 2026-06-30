@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
+import { ownerPlanLimits } from "@/lib/ownerPlans";
+import {
+  canViewContacts,
+  maskEmail,
+  maskPhone,
+  maskText,
+} from "@/lib/contactAccess";
 
 type ApplicationStatus = "applied" | "shortlisted" | "rejected" | "hired";
 
@@ -123,6 +130,9 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [hiddenApplicants, setHiddenApplicants] = useState(0);
+  const [visibleApplicantLimit, setVisibleApplicantLimit] = useState<number | null>(null);
+  const [ownerLimits, setOwnerLimits] = useState(ownerPlanLimits("free"));
 
   useEffect(() => {
     loadPage();
@@ -177,7 +187,7 @@ export default function ApplicationsPage() {
     if (myProfile.role === "job_seeker") {
       await loadSeekerApplications(userId);
     } else {
-      await loadOwnerApplications(userId, myProfile.role === "admin");
+      await loadOwnerApplications(userId, myProfile.role === "admin", myProfile);
     }
 
     setLoading(false);
@@ -222,71 +232,92 @@ export default function ApplicationsPage() {
     setApplications(finalData);
   }
 
-  async function loadOwnerApplications(userId: string, isAdmin: boolean) {
+  async function loadOwnerApplications(userId: string, isAdmin: boolean, myProfile: UpgradedProfile) {
     let jobsQuery = supabase.from("jobs").select("*");
 
     if (!isAdmin) {
       jobsQuery = jobsQuery.eq("owner_id", userId);
     }
 
-    const { data: jobData, error: jobError } = await jobsQuery.order(
-      "created_at",
-      {
-        ascending: false,
-      }
-    );
-
-    if (jobError) {
-      showToast(jobError.message, "error");
-      return;
+  const { data: jobData, error: jobError } = await jobsQuery.order(
+    "created_at",
+    {
+      ascending: false,
     }
+  );
 
-    const jobs = (jobData ?? []) as Job[];
-    const jobIds = jobs.map((job) => job.id);
-
-    if (jobIds.length === 0) {
-      setApplications([]);
-      return;
-    }
-
-    const { data: appData, error: appError } = await supabase
-      .from("applications")
-      .select("*")
-      .in("job_id", jobIds)
-      .order("created_at", { ascending: false });
-
-    if (appError) {
-      showToast(appError.message, "error");
-      return;
-    }
-
-    const appRows = (appData ?? []) as ApplicationRow[];
-    const seekerIds = appRows.map((app) => app.seeker_id);
-
-    let seekers: UpgradedProfile[] = [];
-
-    if (seekerIds.length > 0) {
-      const { data: seekerData, error: seekerError } = await supabase
-        .from("profiles")
-        .select("*")
-        .in("id", seekerIds);
-
-      if (seekerError) {
-        showToast(seekerError.message, "error");
-        return;
-      }
-
-      seekers = (seekerData ?? []) as UpgradedProfile[];
-    }
-
-    const finalData = appRows.map((app) => ({
-      ...app,
-      job: jobs.find((job) => job.id === app.job_id),
-      seeker: seekers.find((seeker) => seeker.id === app.seeker_id),
-    }));
-
-    setApplications(finalData);
+  if (jobError) {
+    showToast(jobError.message, "error");
+    return;
   }
+
+  const jobs = (jobData ?? []) as Job[];
+  const jobIds = jobs.map((job) => job.id);
+
+  if (jobIds.length === 0) {
+    setApplications([]);
+    return;
+  }
+
+  const { data: appData, error: appError } = await supabase
+    .from("applications")
+    .select("*")
+    .in("job_id", jobIds)
+    .order("created_at", { ascending: false });
+
+  if (appError) {
+    showToast(appError.message, "error");
+    return;
+  }
+
+  const appRows = (appData ?? []) as ApplicationRow[];
+  const seekerIds = appRows.map((app) => app.seeker_id);
+
+  let seekers: UpgradedProfile[] = [];
+
+  if (seekerIds.length > 0) {
+    const { data: seekerData, error: seekerError } = await supabase
+      .from("profiles")
+      .select("*")
+      .in("id", seekerIds);
+
+    if (seekerError) {
+      showToast(seekerError.message, "error");
+      return;
+    }
+
+    seekers = (seekerData ?? []) as UpgradedProfile[];
+  }
+
+  const finalData = appRows.map((app) => ({
+    ...app,
+    job: jobs.find((job) => job.id === app.job_id),
+    seeker: seekers.find((seeker) => seeker.id === app.seeker_id),
+  }));
+
+  // Admins can always see everything
+  if (isAdmin) {
+    setApplications(finalData);
+    return;
+  }
+
+  // Read owner's plan
+  const planLimits = ownerPlanLimits(myProfile.owner_plan);
+
+  setOwnerLimits(planLimits);
+
+  const visibleLimit = planLimits.applicantVisibility;
+
+  setVisibleApplicantLimit(visibleLimit);
+
+  const visibleApplications = finalData.slice(0, visibleLimit);
+
+  setApplications(visibleApplications);
+
+  setHiddenApplicants(
+    Math.max(0, finalData.length - visibleApplications.length)
+  );
+}
 
   async function updateStatus(applicationId: string, status: ApplicationStatus) {
     setUpdatingId(applicationId);
@@ -762,6 +793,9 @@ export default function ApplicationsPage() {
         >
           {filteredApplications.map((app) => {
             const completionScore = profileCompletion(app.seeker);
+            const contactsUnlocked =
+  profile?.role === "admin" ||
+  canViewContacts(profile?.owner_plan);
 
             return (
               <article
@@ -979,7 +1013,9 @@ export default function ApplicationsPage() {
                             color: "var(--muted)",
                           }}
                         >
-                          {app.seeker?.email || "Email not available"}
+                         {contactsUnlocked
+  ? app.seeker?.email || "Email not available"
+  : maskEmail(app.seeker?.email)}
                         </p>
 
                         <div>
@@ -1026,7 +1062,14 @@ export default function ApplicationsPage() {
                         value={app.seeker?.expected_salary}
                       />
                       <InfoTile label="Location" value={app.seeker?.location} />
-                      <InfoTile label="Phone" value={app.seeker?.phone} />
+                      <InfoTile
+  label="Phone"
+  value={
+    contactsUnlocked
+      ? app.seeker?.phone
+      : maskPhone(app.seeker?.phone)
+  }
+/>
                       <InfoTile
                         label="Occupation"
                         value={app.seeker?.occupation}
@@ -1052,18 +1095,151 @@ export default function ApplicationsPage() {
                         </p>
                       </DetailBlock>
 
-                      <DetailBlock title="Portfolio / proof">
-                        {app.seeker?.portfolio_url ? (
-                          <a
-                            className="profile-link"
-                            href={app.seeker.portfolio_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open portfolio
-                          </a>
+                      <DetailBlock title="🌐 Portfolio">
+  {!app.seeker?.portfolio_url ? (
+    <p style={{ margin: 0 }}>No portfolio added.</p>
+  ) : contactsUnlocked ? (
+    <a
+      className="profile-link"
+      href={app.seeker.portfolio_url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      Open Portfolio
+    </a>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          padding: 14,
+          borderRadius: 14,
+          background: "rgba(255,90,31,0.08)",
+          border: "1px solid rgba(255,90,31,0.18)",
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 800,
+            color: "var(--premium)",
+            marginBottom: 8,
+          }}
+        >
+          🔒 Portfolio Locked
+        </div>
+
+        <div
+          style={{
+            color: "var(--muted)",
+            marginBottom: 14,
+          }}
+        >
+          {maskText(app.seeker.portfolio_url)}
+        </div>
+
+        <p
+          style={{
+            margin: "0 0 14px",
+            color: "var(--muted)",
+            fontSize: 14,
+          }}
+        >
+          Upgrade to <strong>Starter</strong> to unlock applicant contact
+          details and portfolio links.
+        </p>
+
+        <a
+          href="/pricing"
+          className="btn btn-primary"
+        >
+          Upgrade Plan
+        </a>
+      </div>
+    </div>
+  )}
+</DetailBlock>
+                      <DetailBlock title="Resume">
+                        {app.seeker?.resume_url ? (
+                          ownerLimits.resumeDownloads ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 12,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <div>
+                                <strong
+                                  style={{
+                                    display: "block",
+                                    color: "var(--premium)",
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  {app.seeker.resume_filename || "Resume.pdf"}
+                                </strong>
+
+                                <span
+                                  style={{
+                                    color: "var(--muted)",
+                                    fontSize: 14,
+                                  }}
+                                >
+                                  Resume uploaded
+                                </span>
+                              </div>
+
+                              <a
+                                href={app.seeker.resume_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-primary"
+                              >
+                                ⬇ Download Resume
+                              </a>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                textAlign: "center",
+                                padding: 18,
+                                borderRadius: 18,
+                                background: "rgba(255,90,31,0.06)",
+                                border: "1px solid rgba(255,90,31,0.18)",
+                              }}
+                            >
+                              <div style={{ fontSize: 34 }}>🔒</div>
+
+                              <h4 style={{ margin: "10px 0" }}>
+                                Resume Locked
+                              </h4>
+
+                              <p
+                                style={{
+                                  marginBottom: 16,
+                                }}
+                              >
+                                Upgrade to Starter or above to download resumes.
+                              </p>
+
+                              <a
+                                href="/pricing"
+                                className="btn btn-primary"
+                              >
+                                Upgrade Plan
+                              </a>
+                            </div>
+                          )
                         ) : (
-                          <p style={{ margin: 0 }}>No portfolio link added.</p>
+                          <p style={{ margin: 0 }}>
+                            No resume uploaded.
+                          </p>
                         )}
                       </DetailBlock>
 
@@ -1164,6 +1340,52 @@ export default function ApplicationsPage() {
               </article>
             );
           })}
+          {profile?.role === "job_owner" && hiddenApplicants > 0 && (
+  <section
+    className="card"
+    style={{
+      borderRadius: 30,
+      padding: 30,
+      textAlign: "center",
+      border: "1px solid rgba(255,90,31,0.22)",
+      background:
+        "radial-gradient(circle at top, rgba(255,90,31,0.12), transparent 34%), var(--card)",
+      boxShadow: "0 24px 70px rgba(17,24,39,0.12)",
+    }}
+  >
+    <div style={{ fontSize: 54, marginBottom: 14 }}>🔒</div>
+
+    <h2>{hiddenApplicants} more applicants hidden</h2>
+
+    <p>
+      Your <strong>{profile.owner_plan.toUpperCase()}</strong> plan currently
+      shows only <strong>{visibleApplicantLimit}</strong> applicants.
+    </p>
+
+    <p>
+      Upgrade your owner plan to view more applicants, unlock resumes, and hire
+      faster.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: 10,
+        margin: "24px auto",
+        maxWidth: 420,
+        textAlign: "left",
+      }}
+    >
+      <div>✅ Starter: 25 applicants visible</div>
+      <div>✅ Growth: 200 applicants visible</div>
+      <div>✅ Pro: 1000 applicants visible</div>
+    </div>
+
+    <a className="btn btn-primary" href="/pricing">
+      Upgrade Plan
+    </a>
+  </section>
+)}
         </section>
       )}
     </main>

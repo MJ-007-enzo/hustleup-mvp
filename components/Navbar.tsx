@@ -376,7 +376,17 @@ export default function Navbar() {
                 Applications
               </Link>
             )}
-
+{!loading &&
+  email &&
+  (role === "job_owner" || role === "admin") && (
+    <Link
+      href="/billing"
+      style={navLinkStyle("/billing")}
+      onClick={closeMenu}
+    >
+      Billing
+    </Link>
+)}
             {!loading && email && (
               <Link
                 href="/dashboard"

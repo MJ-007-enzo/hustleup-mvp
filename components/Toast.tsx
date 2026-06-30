@@ -15,6 +15,26 @@ export default function Toast({
   onClose: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+useEffect(() => {
+  function updateTheme() {
+    setIsDarkMode(
+      document.documentElement.getAttribute("data-theme") === "dark"
+    );
+  }
+
+  updateTheme();
+
+  const observer = new MutationObserver(updateTheme);
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+
+  return () => observer.disconnect();
+}, []);
 
   useEffect(() => {
     setMounted(true);
@@ -35,6 +55,8 @@ export default function Toast({
   const isSuccess = type === "success";
   const isError = type === "error";
 
+
+
   return createPortal(
     <div
       style={{
@@ -42,26 +64,26 @@ export default function Toast({
         top: "18px",
         left: "50%",
         transform: "translateX(-50%)",
-        zIndex: 2147483647,
-        width: "min(92vw, 620px)",
-        padding: "16px 18px",
-        borderRadius: "20px",
+     zIndex: 2147483647,
+        width: "min(94vw, 560px)",
+padding: "18px 22px",
+borderRadius: "24px",
         display: "flex",
         alignItems: "center",
         gap: "12px",
-        background: isSuccess
-  ? "linear-gradient(135deg, rgba(6,78,59,0.98), rgba(4,120,87,0.98))"
+   background: isDarkMode
+  ? "#111827"
+  : "#ffffff",
+     border: isSuccess
+  ? "1px solid rgba(16,185,129,.45)"
   : isError
-    ? "linear-gradient(135deg, rgba(69,10,10,0.98), rgba(127,29,29,0.98))"
-    : "linear-gradient(135deg, rgba(17,24,39,0.98), rgba(31,41,55,0.98))",
-       border: isSuccess
-  ? "1px solid rgba(16,185,129,0.35)"
-  : isError
-    ? "1px solid rgba(239,68,68,0.35)"
-    : "1px solid rgba(255,90,31,0.25)",
-      color: "#ffffff",
-        boxShadow:
-          "0 34px 100px rgba(0,0,0,0.32), 0 14px 34px rgba(17,24,39,0.18)",
+  ? "1px solid rgba(239,68,68,.45)"
+  : "1px solid rgba(59,130,246,.45)",
+   color: isDarkMode
+  ? "#F9FAFB"
+  : "#111827",
+      boxShadow:
+"0 25px 70px rgba(0,0,0,.45)",
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
       }}
@@ -75,8 +97,12 @@ export default function Toast({
           placeItems: "center",
           flexShrink: 0,
           fontWeight: 950,
-         background: "rgba(255,255,255,0.08)",
-          color: "inherit",
+      background: isSuccess
+  ? "#10B981"
+  : isError
+  ? "#EF4444"
+  : "#3B82F6",
+         color: "#fff",
           boxShadow: "0 8px 20px rgba(17,24,39,0.08)",
         }}
       >
@@ -102,8 +128,8 @@ export default function Toast({
           width: "32px",
           height: "32px",
           borderRadius: "999px",
-          border: "1px solid rgba(255,255,255,0.12)",
-          background: "rgba(255,255,255,0.08)",
+     border: "none",
+      background: "transparent",
           color: "inherit",
           fontSize: "20px",
           fontWeight: 800,

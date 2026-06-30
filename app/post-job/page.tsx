@@ -10,12 +10,15 @@ import {
 import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
+import { ownerPlanLimits } from "@/lib/ownerPlans";
+import Link from "next/link";
 
 type SalaryType = "hour" | "day" | "week" | "month";
 
 type DropdownKey =
   | "city"
   | "jobType"
+  |  "workSchedule"
   | "startTime"
   | "endTime"
   | "salaryType"
@@ -112,6 +115,13 @@ const jobTypeOptions: DropdownOption[] = [
   { label: "Remote work", value: "Remote work" },
   { label: "Flexible work", value: "Flexible work" },
 ];
+const workScheduleOptions: DropdownOption[] = [
+  { label: "Mon - Fri", value: "Mon - Fri" },
+  { label: "Mon - Sat", value: "Mon - Sat" },
+  { label: "Weekends Only", value: "Weekends Only" },
+  { label: "Daily", value: "Daily" },
+  { label: "Flexible", value: "Flexible" },
+];
 
 const salaryTypeOptions: DropdownOption[] = [
   { label: "/hour", value: "hour" },
@@ -189,11 +199,14 @@ export default function PostJobPage() {
 
   const [profile, setProfile] = useState<UpgradedProfile | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(true);
-const [requireResume, setRequireResume] = useState(false);
+  const [requireResume, setRequireResume] = useState(false);
+  const [ownerLimitReached, setOwnerLimitReached] = useState(false);
+  const [activeJobCount, setActiveJobCount] = useState(0);
   const [title, setTitle] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [location, setLocation] = useState("");
   const [jobType, setJobType] = useState("Part-time");
+  const [workSchedule, setWorkSchedule] = useState("Flexible");
   const [startTime, setStartTime] = useState("5:00 PM");
   const [endTime, setEndTime] = useState("9:00 PM");
   const [salaryType, setSalaryType] = useState<SalaryType>("day");
@@ -260,28 +273,55 @@ const [requireResume, setRequireResume] = useState(false);
   }, []);
 
   async function checkAccess() {
-    const { data: authData } = await supabase.auth.getUser();
+  const { data: authData } = await supabase.auth.getUser();
 
-    if (!authData.user) {
-      window.location.href = "/auth";
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", authData.user.id)
-      .single();
-
-    if (error) {
-      showToast(error.message, "error");
-      setCheckingAccess(false);
-      return;
-    }
-
-    setProfile(data as UpgradedProfile);
-    setCheckingAccess(false);
+  if (!authData.user) {
+    window.location.href = "/auth";
+    return;
   }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", authData.user.id)
+    .single();
+
+  if (error) {
+    showToast(error.message, "error");
+    setCheckingAccess(false);
+    return;
+  }
+
+  const profileData = data as UpgradedProfile;
+
+  setProfile(profileData);
+
+  // Get the limits for the owner's current plan
+  const limits = ownerPlanLimits(profileData.owner_plan);
+
+  // Count ACTIVE jobs posted by this owner
+  const { count: activeJobs } = await supabase
+    .from("jobs")
+    .select("*", {
+      count: "exact",
+      head: true,
+    })
+    .eq("owner_id", authData.user.id)
+    .eq("status", "open");
+
+  const currentActiveJobs = activeJobs ?? 0;
+
+  setActiveJobCount(currentActiveJobs);
+
+  // Has the owner reached their limit?
+  if (currentActiveJobs >= limits.activeJobs) {
+    setOwnerLimitReached(true);
+  } else {
+    setOwnerLimitReached(false);
+  }
+
+  setCheckingAccess(false);
+}
 
   function triggerSalaryMotion() {
     setSalaryMotion(false);
@@ -519,6 +559,7 @@ const [requireResume, setRequireResume] = useState(false);
       company_name: companyName,
       location: cleanedLocation,
       job_type: jobType,
+      work_schedule: workSchedule,
       duration,
       salary_type: salaryType,
       salary_amount: finalSalaryAmount,
@@ -546,6 +587,7 @@ const [requireResume, setRequireResume] = useState(false);
     setCompanyName("");
     setLocation("");
     setJobType("Part-time");
+    setWorkSchedule("Flexible");
     setStartTime("5:00 PM");
     setEndTime("9:00 PM");
     setSalaryType("day");
@@ -571,7 +613,75 @@ setRequireResume(false);
       </main>
     );
   }
+if (ownerLimitReached) {
+  return (
+    <main className="container">
+      <section
+        className="card"
+        style={{
+          maxWidth: 720,
+          margin: "60px auto",
+          padding: 40,
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 70,
+            marginBottom: 20,
+          }}
+        >
+          💼
+        </div>
 
+        <h1>Free Plan Limit Reached</h1>
+
+        <p
+          style={{
+            fontSize: 17,
+            marginTop: 16,
+            lineHeight: 1.7,
+          }}
+        >
+          You already have{" "}
+          <strong>{activeJobCount}</strong> active job
+          {activeJobCount !== 1 ? "s" : ""}.
+        </p>
+
+        <p>
+          Your <strong>{profile?.owner_plan.toUpperCase()}</strong> plan allows
+          only <strong>1 active job</strong>.
+        </p>
+
+        <div
+          style={{
+            marginTop: 30,
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          <div>✅ Starter → 2 Active Jobs</div>
+          <div>✅ Growth → 7 Active Jobs</div>
+          <div>✅ Pro → 20 Active Jobs</div>
+          <div>✅ Business → Unlimited Jobs</div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 35,
+          }}
+        >
+          <Link
+            href="/pricing"
+            className="btn btn-primary"
+          >
+            Upgrade Plan
+          </Link>
+        </div>
+      </section>
+    </main>
+  );
+}
   if (profile?.role !== "job_owner" && profile?.role !== "admin") {
     return (
       <main className="container">
@@ -863,6 +973,15 @@ setRequireResume(false);
               onChange={setJobType}
             />
           </label>
+          <label className="label">
+  Work schedule
+  <PremiumDropdown
+    dropdownKey="workSchedule"
+    value={workSchedule}
+    options={workScheduleOptions}
+    onChange={setWorkSchedule}
+  />
+</label>
 
           <label className="label">
             Duration / timing

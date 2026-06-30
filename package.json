@@ -16,6 +16,7 @@
     "razorpay": "^2.9.6",
     "react": "latest",
     "react-dom": "latest",
+    "resend": "^6.16.0",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {

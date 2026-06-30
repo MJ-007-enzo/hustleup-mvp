@@ -45,7 +45,17 @@ export default function ConfirmModal({
       window.removeEventListener("keydown", handleEscape);
     };
   }, [open, onClose]);
+useEffect(() => {
+  if (!open) return;
 
+  const previousOverflow = document.body.style.overflow;
+
+  document.body.style.overflow = "hidden";
+
+  return () => {
+    document.body.style.overflow = previousOverflow;
+  };
+}, [open]);
   if (!mounted || !open) return null;
 
   return createPortal(

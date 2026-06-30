@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
@@ -92,10 +93,12 @@ function applicationLimitForTier(tier?: string | null) {
 export default function JobsPage() {
   const { showToast } = useToast();
 
+  const [mounted, setMounted] = useState(false);
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobWithDetails | null>(null);
+  const [countedViews, setCountedViews] = useState<Set<string>>(new Set());
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [monthlyApplicationCount, setMonthlyApplicationCount] = useState(0);
 
@@ -164,6 +167,7 @@ export default function JobsPage() {
   ];
 
   useEffect(() => {
+    setMounted(true);
     loadJobs();
     loadViewer();
   }, []);
@@ -179,16 +183,35 @@ export default function JobsPage() {
       window.removeEventListener("click", closeDropdown);
     };
   }, []);
+useEffect(() => {
+  async function recordView() {
+    if (!selectedJob) return;
 
+    if (countedViews.has(selectedJob.id)) return;
+
+    setCountedViews((previous) => {
+      const next = new Set(previous);
+      next.add(selectedJob.id);
+      return next;
+    });
+
+    await supabase.rpc("increment_job_views", {
+      job_id: selectedJob.id,
+    });
+  }
+
+  recordView();
+}, [selectedJob]);
   const filteredJobs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return jobs.filter((job) => {
+    const filtered = jobs.filter((job) => {
       const searchableText = [
         job.title,
         job.company_name,
         job.location,
         job.job_type,
+        job.work_schedule,
         job.requirements,
         job.responsibilities,
         job.who_can_apply,
@@ -222,6 +245,20 @@ export default function JobsPage() {
         matchesJobType &&
         matchesSalaryPeriod &&
         matchesPremium
+      );
+       });
+
+    return filtered.sort((a, b) => {
+      const priorityDifference =
+        visibilityPriority(b) - visibilityPriority(a);
+
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+
+      return (
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
       );
     });
   }, [
@@ -259,9 +296,7 @@ export default function JobsPage() {
   function premiumLockText(job: JobWithDetails) {
     if (!job.is_premium) return "";
 
-    if (hasPremiumAccess) {
-      return "Premium unlocked";
-    }
+    if (hasPremiumAccess) return "Premium unlocked";
 
     if (hasBasicPreviewAccess) {
       return "Basic preview: upgrade to Premium to apply.";
@@ -292,13 +327,20 @@ export default function JobsPage() {
   }
 
   async function loadJobs() {
-    const { data, error } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("status", "open")
-      .order("is_premium", { ascending: false })
-      .order("created_at", { ascending: false });
+  const { error: cleanupError } = await supabase.rpc(
+    "cleanup_expired_job_visibility"
+  );
 
+  if (cleanupError) {
+    console.error(cleanupError.message);
+  }
+
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("*")
+    .eq("status", "open")
+    .order("is_premium", { ascending: false })
+    .order("created_at", { ascending: false });
     if (error) {
       showToast(error.message, "error");
       return;
@@ -341,11 +383,9 @@ export default function JobsPage() {
     ]);
 
     setProfile((profileData as Profile) ?? null);
-
     setAppliedJobIds(
       new Set((applicationData ?? []).map((item) => item.job_id))
     );
-
     setMonthlyApplicationCount(monthlyCount ?? 0);
   }
 
@@ -364,13 +404,15 @@ export default function JobsPage() {
       );
       return;
     }
-if (job.require_resume && !profile?.resume_url) {
-  showToast(
-    "This job requires a resume. Please upload one in your profile first.",
-    "error"
-  );
-  return;
-}
+
+    if (job.require_resume && !profile?.resume_url) {
+      showToast(
+        "This job requires a resume. Please upload one in your profile first.",
+        "error"
+      );
+      return;
+    }
+
     setApplyingJobId(job.id);
 
     const { data: authData } = await supabase.auth.getUser();
@@ -390,14 +432,13 @@ if (job.require_resume && !profile?.resume_url) {
     }
 
     const { error } = await supabase.from("applications").insert({
-  job_id: job.id,
-  seeker_id: authData.user.id,
-  message: "I am interested in this opportunity.",
-  status: "applied",
-
-  resume_url: profile?.resume_url || null,
-  resume_filename: profile?.resume_filename || null,
-});
+      job_id: job.id,
+      seeker_id: authData.user.id,
+      message: "I am interested in this opportunity.",
+      status: "applied",
+      resume_url: profile?.resume_url || null,
+      resume_filename: profile?.resume_filename || null,
+    });
 
     setApplyingJobId(null);
 
@@ -427,14 +468,119 @@ if (job.require_resume && !profile?.resume_url) {
       setMonthlyApplicationCount((previousCount) => previousCount + 1);
     }
 
-    showToast("Application submitted successfully.", "success");
-    setSelectedJob(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+const token = sessionData.session?.access_token;
+
+if (token) {
+  fetch("/api/notifications/job-application", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      jobId: job.id,
+    }),
+  }).catch((emailError) => {
+    console.error("Application email failed:", emailError);
+  });
+}
+
+showToast("Application submitted successfully.", "success");
+setSelectedJob(null);
   }
 
   function salaryLabel(job: JobWithDetails) {
     return `₹${job.salary_amount}/${job.salary_type}`;
   }
+function isBoostActive(job: JobWithDetails) {
+  if (!job.boost_type || !job.boost_expires_at) return false;
 
+  return new Date(job.boost_expires_at).getTime() > Date.now();
+}
+
+function isUrgentActive(job: JobWithDetails) {
+  if (!job.urgent_tag || !job.urgent_expires_at) return false;
+
+  return new Date(job.urgent_expires_at).getTime() > Date.now();
+}
+function visibilityPriority(job: JobWithDetails) {
+  let score = 0;
+
+  if (isBoostActive(job)) {
+    if (job.boost_type === "7-day") score += 400;
+    else if (job.boost_type === "3-day") score += 300;
+    else if (job.boost_type === "1-day") score += 200;
+  }
+
+  if (isUrgentActive(job)) {
+    score += 100;
+  }
+
+  if (job.is_premium) {
+    score += 50;
+  }
+
+  return score;
+}
+function VisibilityBadges({ job }: { job: JobWithDetails }) {
+  const boosted = isBoostActive(job);
+  const urgent = isUrgentActive(job);
+
+  if (!boosted && !urgent) return null;
+
+  return (
+    <>
+      {boosted && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            width: "fit-content",
+            borderRadius: 999,
+            padding: "7px 11px",
+            fontSize: 11,
+            fontWeight: 900,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            whiteSpace: "nowrap",
+            background: "linear-gradient(135deg, #ff5a1f, #ff9f0a)",
+            color: "white",
+            border: "1px solid rgba(255,90,31,0.35)",
+            boxShadow: "0 14px 30px rgba(255,90,31,0.22)",
+          }}
+        >
+          🔥 Boosted
+        </span>
+      )}
+
+      {urgent && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            width: "fit-content",
+            borderRadius: 999,
+            padding: "7px 11px",
+            fontSize: 11,
+            fontWeight: 900,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            whiteSpace: "nowrap",
+            background: "rgba(239,68,68,0.12)",
+            color: "#dc2626",
+            border: "1px solid rgba(239,68,68,0.28)",
+            boxShadow: "0 14px 30px rgba(239,68,68,0.12)",
+          }}
+        >
+          🚨 Urgent
+        </span>
+      )}
+    </>
+  );
+}
   function detailText(value?: string | null) {
     return value && value.trim().length > 0
       ? value
@@ -500,424 +646,490 @@ if (job.require_resume && !profile?.resume_url) {
   }
 
   function FilterDropdown({
-  label,
-  dropdownKey,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  dropdownKey: FilterKey;
-  value: string;
-  options: DropdownOption[];
-  onChange: (value: string) => void;
-}) {
-  const isOpen = openDropdown === dropdownKey;
+    label,
+    dropdownKey,
+    value,
+    options,
+    onChange,
+  }: {
+    label: string;
+    dropdownKey: FilterKey;
+    value: string;
+    options: DropdownOption[];
+    onChange: (value: string) => void;
+  }) {
+    const isOpen = openDropdown === dropdownKey;
 
-  return (
-    <div
-      className="label jobs-filter-dropdown"
-      style={{
-        position: "relative",
-        zIndex: isOpen ? 9999 : 20,
-      }}
-      onClick={(event) => event.stopPropagation()}
-    >
-      {label}
-
-      <button
-        type="button"
-        className="jobs-filter-select"
-        onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
+    return (
+      <div
+        className="label jobs-filter-dropdown"
+        style={{
+          position: "relative",
+          zIndex: isOpen ? 9999 : 20,
+        }}
+        onClick={(event) => event.stopPropagation()}
       >
-        <span className="jobs-filter-selected">
-          {selectedLabel(options, value)}
-        </span>
+        {label}
 
-        <span className={`jobs-filter-arrow ${isOpen ? "open" : ""}`}>↓</span>
-      </button>
+        <button
+          type="button"
+          className="jobs-filter-select"
+          onClick={() => setOpenDropdown(isOpen ? null : dropdownKey)}
+        >
+          <span className="jobs-filter-selected">
+            {selectedLabel(options, value)}
+          </span>
 
-      {isOpen && (
-        <div className="jobs-filter-menu">
-          {options.map((option) => {
-            const selected = option.value === value;
+          <span className={`jobs-filter-arrow ${isOpen ? "open" : ""}`}>
+            ↓
+          </span>
+        </button>
 
-            return (
+        {isOpen && (
+          <div className="jobs-filter-menu">
+            {options.map((option) => {
+              const selected = option.value === value;
+
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  className={`jobs-filter-option ${
+                    selected ? "selected" : ""
+                  }`}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpenDropdown(null);
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {selected && <span>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const jobModal =
+    mounted && selectedJob &&
+  createPortal(
+          <div
+            className="job-modal-backdrop"
+            onClick={() => setSelectedJob(null)}
+          >
+            <div
+              className="job-modal"
+              onClick={(event) => event.stopPropagation()}
+            >
               <button
-                type="button"
-                key={option.value}
-                className={`jobs-filter-option ${
-                  selected ? "selected" : ""
-                }`}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpenDropdown(null);
-                }}
+                className="job-modal-close"
+                onClick={() => setSelectedJob(null)}
+                aria-label="Close job details"
               >
-                <span>{option.label}</span>
-                {selected && <span>✓</span>}
+                ×
               </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
+
+              <div className="job-modal-top">
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    }}
+  >
+    <span
+      className={
+        selectedJob.is_premium ? "premium-pill" : "open-pill"
+      }
+    >
+      {selectedJob.is_premium ? "Premium" : "Open"}
+    </span>
+
+    <VisibilityBadges job={selectedJob} />
+  </div>
+
+  <span className="job-date">
+                  Posted{" "}
+                  {new Date(selectedJob.created_at).toLocaleDateString(
+                    "en-IN",
+                    {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    }
+                  )}
+                </span>
+              </div>
+
+              <h2>{selectedJob.title}</h2>
+
+              <p className="job-modal-company">
+                <strong>{selectedJob.company_name}</strong> ·{" "}
+                {selectedJob.location}
+              </p>
+
+              {selectedJob.is_premium && !hasPremiumAccess && (
+                <div
+                  className="notice"
+                  style={{
+                    marginBottom: 18,
+                    fontWeight: 750,
+                  }}
+                >
+                  {hasBasicPreviewAccess
+                    ? "Basic preview unlocked. Upgrade to Premium to apply for this listing."
+                    : "This is a Premium listing. Upgrade to unlock full access."}
+                </div>
+              )}
+
+              {!selectedJob.is_premium && isApplicationLimitReached && (
+                <div
+                  className="notice error"
+                  style={{
+                    marginBottom: 18,
+                    fontWeight: 750,
+                  }}
+                >
+                  You reached your monthly application limit. Upgrade your plan
+                  to apply more this month.
+                </div>
+              )}
+
+              <div className="job-modal-grid">
+                <div>
+                  <small>Job type</small>
+                  <strong>{selectedJob.job_type}</strong>
+                </div>
+
+                <div>
+                  <small>Schedule</small>
+                  <strong>{selectedJob.work_schedule || "Flexible"}</strong>
+                </div>
+
+                <div>
+                  <small>Timing</small>
+                  <strong>{selectedJob.duration || "Flexible"}</strong>
+                </div>
+
+                <div>
+                  <small>Salary</small>
+                  <strong>{salaryLabel(selectedJob)}</strong>
+                </div>
+
+                <div>
+                  <small>Openings</small>
+                  <strong>{selectedJob.openings || 1}</strong>
+                </div>
+
+                <div>
+                  <small>Area</small>
+                  <strong>
+                    {selectedJob.work_address || selectedJob.location}
+                  </strong>
+                </div>
+
+                <div>
+                  <small>Status</small>
+                  <strong>{selectedJob.status}</strong>
+                </div>
+
+                <div>
+                  <small>Resume</small>
+                  <strong>
+                    {selectedJob.require_resume ? "Required" : "Optional"}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="job-modal-section">
+                <h3>Requirements</h3>
+                <p>{detailText(selectedJob.requirements)}</p>
+              </div>
+
+              <div className="job-modal-section">
+                <h3>Responsibilities</h3>
+                <p>{detailText(selectedJob.responsibilities)}</p>
+              </div>
+
+              <div className="job-modal-section">
+                <h3>Who can apply?</h3>
+                <p>{detailText(selectedJob.who_can_apply)}</p>
+              </div>
+
+              <div className="job-modal-section">
+                <h3>Benefits / perks</h3>
+                <p>{detailText(selectedJob.benefits)}</p>
+              </div>
+
+              <div className="job-modal-section">
+                <h3>Work address</h3>
+                <p>{detailText(selectedJob.work_address)}</p>
+              </div>
+
+              <div className="job-modal-section">
+                <h3>Contact note</h3>
+                <p>{detailText(selectedJob.contact_note)}</p>
+              </div>
+
+              <div className="job-modal-actions">
+                <button className="btn" onClick={() => setSelectedJob(null)}>
+                  Close
+                </button>
+
+                {renderApplyButton(selectedJob, true)}
+              </div>
+              <div style={{ height: 80 }} />
+            </div>
+          </div>,
+          document.body
+        )
+       null;
 
   return (
-    <main className="container">
-      <section className="jobs-hero">
-        <div>
-          <span className="badge">Open opportunities</span>
-          <h1>Browse part-time jobs.</h1>
-          <p className="hero-copy">
-            Find local, flexible work opportunities. Search and filter jobs by
-            location, type, salary period, and premium access.
-          </p>
-        </div>
-
-        <div className="jobs-summary-card">
-          <span className="tag">Live marketplace</span>
-          <div className="stat">{filteredJobs.length}</div>
-          <p>
-            result{filteredJobs.length === 1 ? "" : "s"} from {jobs.length} open
-            job{jobs.length === 1 ? "" : "s"}
-          </p>
-        </div>
-      </section>
-
-      {profile && (
-        <div className="notice" style={{ marginBottom: 14 }}>
-          Current access: <strong>{viewerTier}</strong> ·{" "}
-          <strong>{applicationLimitText()}</strong>
-          {viewerTier === "beginner" &&
-            " Premium listings are visible but locked."}
-          {viewerTier === "basic" &&
-            " Premium details are unlocked, but Premium applications need Premium."}
-          {hasPremiumAccess && " Premium listings are fully unlocked."}
-        </div>
-      )}
-
-      {!profile && (
-        <div className="notice" style={{ marginBottom: 14 }}>
-          You can browse jobs now. Login to apply and unlock plan-based access.
-        </div>
-      )}
-
-      <section className="jobs-filter-panel">
-        <div className="jobs-search-box">
-          <label className="label">
-            Search jobs
-            <input
-              className="input"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search title, company, skills, benefits..."
-            />
-          </label>
-        </div>
-
-        <div className="jobs-filter-grid">
-          <FilterDropdown
-            label="Location"
-            dropdownKey="location"
-            value={locationFilter}
-            options={locationOptions}
-            onChange={setLocationFilter}
-          />
-
-          <FilterDropdown
-            label="Job type"
-            dropdownKey="jobType"
-            value={jobTypeFilter}
-            options={jobTypeOptions}
-            onChange={setJobTypeFilter}
-          />
-
-          <FilterDropdown
-            label="Salary period"
-            dropdownKey="salaryPeriod"
-            value={salaryPeriodFilter}
-            options={salaryPeriodOptions}
-            onChange={setSalaryPeriodFilter}
-          />
-
-          <FilterDropdown
-            label="Listing type"
-            dropdownKey="premium"
-            value={premiumFilter}
-            options={premiumOptions}
-            onChange={(value) => setPremiumFilter(value as PremiumFilter)}
-          />
-        </div>
-
-        <div className="jobs-filter-footer">
-          <p>
-            Showing <strong>{filteredJobs.length}</strong> of{" "}
-            <strong>{jobs.length}</strong> open listings.
-          </p>
-
-          <button className="btn" onClick={clearFilters}>
-            Clear filters
-          </button>
-        </div>
-      </section>
-
-      <section className="jobs-toolbar">
-        <div>
-          <h2>Available jobs</h2>
-          <p>
-            {filteredJobs.length === jobs.length
-              ? "Showing all active listings."
-              : "Showing filtered job results."}
-          </p>
-        </div>
-      </section>
-
-      <section className="jobs-grid">
-        {jobs.length === 0 && (
-          <div className="card empty-jobs-card">
-            <span className="tag">No listings yet</span>
-            <h3>No jobs available right now.</h3>
-            <p>
-              Once job owners post opportunities, they will appear here. Add one
-              or two polished jobs from a job owner account for demo.
+    <>
+      <main className="container">
+        <section className="jobs-hero">
+          <div>
+            <span className="badge">Open opportunities</span>
+            <h1>Browse part-time jobs.</h1>
+            <p className="hero-copy">
+              Find local, flexible work opportunities. Search and filter jobs by
+              location, type, salary period, and premium access.
             </p>
+          </div>
+
+          <div className="jobs-summary-card">
+            <span className="tag">Live marketplace</span>
+            <div className="stat">{filteredJobs.length}</div>
+            <p>
+              result{filteredJobs.length === 1 ? "" : "s"} from {jobs.length}{" "}
+              open job{jobs.length === 1 ? "" : "s"}
+            </p>
+          </div>
+        </section>
+
+        {profile && (
+          <div className="notice" style={{ marginBottom: 14 }}>
+            Current access: <strong>{viewerTier}</strong> ·{" "}
+            <strong>{applicationLimitText()}</strong>
+            {viewerTier === "beginner" &&
+              " Premium listings are visible but locked."}
+            {viewerTier === "basic" &&
+              " Premium details are unlocked, but Premium applications need Premium."}
+            {hasPremiumAccess && " Premium listings are fully unlocked."}
           </div>
         )}
 
-        {jobs.length > 0 && filteredJobs.length === 0 && (
-          <div className="card empty-jobs-card">
-            <span className="tag">No matching jobs</span>
-            <h3>No jobs match these filters.</h3>
-            <p>Try clearing filters or searching a different keyword.</p>
-            <button className="btn btn-primary" onClick={clearFilters}>
+        {!profile && (
+          <div className="notice" style={{ marginBottom: 14 }}>
+            You can browse jobs now. Login to apply and unlock plan-based
+            access.
+          </div>
+        )}
+
+        <section className="jobs-filter-panel">
+          <div className="jobs-search-box">
+            <label className="label">
+              Search jobs
+              <input
+                className="input"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search title, company, skills, benefits..."
+              />
+            </label>
+          </div>
+
+          <div className="jobs-filter-grid">
+            <FilterDropdown
+              label="Location"
+              dropdownKey="location"
+              value={locationFilter}
+              options={locationOptions}
+              onChange={setLocationFilter}
+            />
+
+            <FilterDropdown
+              label="Job type"
+              dropdownKey="jobType"
+              value={jobTypeFilter}
+              options={jobTypeOptions}
+              onChange={setJobTypeFilter}
+            />
+
+            <FilterDropdown
+              label="Salary period"
+              dropdownKey="salaryPeriod"
+              value={salaryPeriodFilter}
+              options={salaryPeriodOptions}
+              onChange={setSalaryPeriodFilter}
+            />
+
+            <FilterDropdown
+              label="Listing type"
+              dropdownKey="premium"
+              value={premiumFilter}
+              options={premiumOptions}
+              onChange={(value) => setPremiumFilter(value as PremiumFilter)}
+            />
+          </div>
+
+          <div className="jobs-filter-footer">
+            <p>
+              Showing <strong>{filteredJobs.length}</strong> of{" "}
+              <strong>{jobs.length}</strong> open listings.
+            </p>
+
+            <button className="btn" onClick={clearFilters}>
               Clear filters
             </button>
           </div>
-        )}
+        </section>
 
-        {filteredJobs.map((job) => (
-          <article
-            className={`job-card ${job.is_premium ? "job-card-premium" : ""}`}
-            key={job.id}
-          >
-            <div className="job-card-top">
-              <span className={job.is_premium ? "premium-pill" : "open-pill"}>
-                {job.is_premium ? "Premium" : "Open"}
-              </span>
-
-              <span className="job-date">
-                {new Date(job.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                })}
-              </span>
-            </div>
-
-            <h2>{job.title}</h2>
-
-            <div className="job-company">
-              <span>{job.company_name}</span>
-              <span>•</span>
-              <span>{job.location}</span>
-            </div>
-
-            <div className="job-meta-grid">
-              <div>
-                <small>Job type</small>
-                <strong>{job.job_type}</strong>
-              </div>
-
-              <div>
-                <small>Timing</small>
-                <strong>{job.duration || "Flexible"}</strong>
-              </div>
-
-              <div>
-                <small>Salary</small>
-                <strong>{salaryLabel(job)}</strong>
-              </div>
-            </div>
-
-            {job.is_premium && !hasPremiumAccess && (
-              <div
-                className="notice"
-                style={{
-                  marginTop: 14,
-                  marginBottom: 14,
-                  fontSize: 13,
-                  fontWeight: 750,
-                }}
-              >
-                {premiumLockText(job)}
-              </div>
-            )}
-
-            {!job.is_premium && isApplicationLimitReached && (
-              <div
-                className="notice error"
-                style={{
-                  marginTop: 14,
-                  marginBottom: 14,
-                  fontSize: 13,
-                  fontWeight: 750,
-                }}
-              >
-                Monthly application limit reached. Upgrade to apply more.
-              </div>
-            )}
-
-            <p className="job-requirements">
-              {job.requirements ||
-                "Tap View details to see full job information."}
+        <section className="jobs-toolbar">
+          <div>
+            <h2>Available jobs</h2>
+            <p>
+              {filteredJobs.length === jobs.length
+                ? "Showing all active listings."
+                : "Showing filtered job results."}
             </p>
-
-            <div className="job-card-actions">
-              {renderDetailsButton(job)}
-              {renderApplyButton(job)}
-            </div>
-          </article>
-        ))}
-      </section>
-
-      {selectedJob && (
-        <div className="job-modal-backdrop" onClick={() => setSelectedJob(null)}>
-          <div className="job-modal" onClick={(event) => event.stopPropagation()}>
-            <button
-              className="job-modal-close"
-              onClick={() => setSelectedJob(null)}
-              aria-label="Close job details"
-            >
-              ×
-            </button>
-
-            <div className="job-modal-top">
-              <span
-                className={selectedJob.is_premium ? "premium-pill" : "open-pill"}
-              >
-                {selectedJob.is_premium ? "Premium" : "Open"}
-              </span>
-
-              <span className="job-date">
-                Posted{" "}
-                {new Date(selectedJob.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-
-            <h2>{selectedJob.title}</h2>
-
-            <p className="job-modal-company">
-              <strong>{selectedJob.company_name}</strong> ·{" "}
-              {selectedJob.location}
-            </p>
-
-            {selectedJob.is_premium && !hasPremiumAccess && (
-              <div
-                className="notice"
-                style={{
-                  marginBottom: 18,
-                  fontWeight: 750,
-                }}
-              >
-                {hasBasicPreviewAccess
-                  ? "Basic preview unlocked. Upgrade to Premium to apply for this listing."
-                  : "This is a Premium listing. Upgrade to unlock full access."}
-              </div>
-            )}
-
-            {!selectedJob.is_premium && isApplicationLimitReached && (
-              <div
-                className="notice error"
-                style={{
-                  marginBottom: 18,
-                  fontWeight: 750,
-                }}
-              >
-                You reached your monthly application limit. Upgrade your plan to
-                apply more this month.
-              </div>
-            )}
-
-            <div className="job-modal-grid">
-              <div>
-                <small>Job type</small>
-                <strong>{selectedJob.job_type}</strong>
-              </div>
-
-              <div>
-                <small>Timing</small>
-                <strong>{selectedJob.duration || "Flexible"}</strong>
-              </div>
-
-              <div>
-                <small>Salary</small>
-                <strong>{salaryLabel(selectedJob)}</strong>
-              </div>
-
-              <div>
-                <small>Openings</small>
-                <strong>{selectedJob.openings || 1}</strong>
-              </div>
-
-              <div>
-                <small>Area</small>
-                <strong>
-                  {selectedJob.work_address || selectedJob.location}
-                </strong>
-              </div>
-
-              <div>
-                <small>Status</small>
-                <strong>{selectedJob.status}</strong>
-              </div>
-            </div>
-
-            <div className="job-modal-section">
-              <h3>Requirements</h3>
-              <p>{detailText(selectedJob.requirements)}</p>
-            </div>
-
-            <div className="job-modal-section">
-              <h3>Responsibilities</h3>
-              <p>{detailText(selectedJob.responsibilities)}</p>
-            </div>
-
-            <div className="job-modal-section">
-              <h3>Who can apply?</h3>
-              <p>{detailText(selectedJob.who_can_apply)}</p>
-            </div>
-
-            <div className="job-modal-section">
-              <h3>Benefits / perks</h3>
-              <p>{detailText(selectedJob.benefits)}</p>
-            </div>
-
-            <div className="job-modal-section">
-              <h3>Work address</h3>
-              <p>{detailText(selectedJob.work_address)}</p>
-            </div>
-
-            <div className="job-modal-section">
-              <h3>Contact note</h3>
-              <p>{detailText(selectedJob.contact_note)}</p>
-            </div>
-
-            <div className="job-modal-actions">
-              <button className="btn" onClick={() => setSelectedJob(null)}>
-                Close
-              </button>
-
-              {renderApplyButton(selectedJob, true)}
-            </div>
           </div>
-        </div>
-      )}
-    </main>
+        </section>
+
+        <section className="jobs-grid">
+          {jobs.length === 0 && (
+            <div className="card empty-jobs-card">
+              <span className="tag">No listings yet</span>
+              <h3>No jobs available right now.</h3>
+              <p>
+                Once job owners post opportunities, they will appear here. Add
+                one or two polished jobs from a job owner account for demo.
+              </p>
+            </div>
+          )}
+
+          {jobs.length > 0 && filteredJobs.length === 0 && (
+            <div className="card empty-jobs-card">
+              <span className="tag">No matching jobs</span>
+              <h3>No jobs match these filters.</h3>
+              <p>Try clearing filters or searching a different keyword.</p>
+              <button className="btn btn-primary" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
+          )}
+
+          {filteredJobs.map((job) => (
+            <article
+              className={`job-card ${
+                job.is_premium ? "job-card-premium" : ""
+              }`}
+              key={job.id}
+            >
+              <div className="job-card-top">
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    }}
+  >
+    <span
+      className={job.is_premium ? "premium-pill" : "open-pill"}
+    >
+      {job.is_premium ? "Premium" : "Open"}
+    </span>
+
+    <VisibilityBadges job={job} />
+  </div>
+
+  <span className="job-date">
+    {new Date(job.created_at).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+    })}
+  </span>
+</div>
+
+              <h2>{job.title}</h2>
+
+              <div className="job-company">
+                <span>{job.company_name}</span>
+                <span>•</span>
+                <span>{job.location}</span>
+              </div>
+
+              <div className="job-meta-grid">
+                <div>
+                  <small>Job type</small>
+                  <strong>{job.job_type}</strong>
+                </div>
+
+                <div>
+                  <small>Schedule</small>
+                  <strong>{job.work_schedule || "Flexible"}</strong>
+                </div>
+
+                <div>
+                  <small>Timing</small>
+                  <strong>{job.duration || "Flexible"}</strong>
+                </div>
+
+                <div>
+                  <small>Salary</small>
+                  <strong>{salaryLabel(job)}</strong>
+                </div>
+              </div>
+
+              {job.is_premium && !hasPremiumAccess && (
+                <div
+                  className="notice"
+                  style={{
+                    marginTop: 14,
+                    marginBottom: 14,
+                    fontSize: 13,
+                    fontWeight: 750,
+                  }}
+                >
+                  {premiumLockText(job)}
+                </div>
+              )}
+
+              {!job.is_premium && isApplicationLimitReached && (
+                <div
+                  className="notice error"
+                  style={{
+                    marginTop: 14,
+                    marginBottom: 14,
+                    fontSize: 13,
+                    fontWeight: 750,
+                  }}
+                >
+                  Monthly application limit reached. Upgrade to apply more.
+                </div>
+              )}
+
+              <p className="job-requirements">
+                {job.requirements ||
+                  "Tap View details to see full job information."}
+              </p>
+
+              <div className="job-card-actions">
+                {renderDetailsButton(job)}
+                {renderApplyButton(job)}
+              </div>
+            </article>
+          ))}
+        </section>
+      </main>
+
+      {jobModal}
+    </>
   );
 }

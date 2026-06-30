@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
+import { ownerPlanLimits } from "@/lib/ownerPlans";
 
 const premiumCardStyle: CSSProperties = {
   position: "relative",
@@ -56,6 +57,8 @@ function applicationLimitForTier(tier?: string | null) {
 
   return 5;
 }
+
+
 
 function applicationUsageText(tier: string | null | undefined, count: number) {
   const limit = applicationLimitForTier(tier);
@@ -367,13 +370,124 @@ function PlanAccessCard({
   );
 }
 
+function OwnerPlanCard({
+  profile,
+  jobCount,
+}: {
+  profile: Profile;
+  jobCount: number;
+}) {
+  const limits = ownerPlanLimits(profile.owner_plan);
+
+  return (
+    <section
+      className="card"
+      style={{
+        ...premiumCardStyle,
+        borderRadius: 30,
+        padding: 28,
+        marginTop: 24,
+      }}
+    >
+      <span className="premium-badge">
+        {profile.owner_plan.toUpperCase()}
+      </span>
+
+      <h2 style={{ marginTop: 18 }}>
+        Current Owner Plan
+      </h2>
+
+      <p>
+        Your subscription controls how many jobs you can post,
+        how many applicants you can view,
+        resume downloads,
+        boosts,
+        and future premium hiring tools.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+          gap: 16,
+          marginTop: 24,
+        }}
+      >
+        <StatCard
+          label="Active Jobs"
+          value={`${jobCount}/${limits.activeJobs}`}
+          hint="Current usage"
+          icon="💼"
+        />
+
+        <StatCard
+          label="Applicants Visible"
+          value={String(limits.applicantVisibility)}
+          hint="Per month"
+          icon="👥"
+        />
+
+        <StatCard
+          label="Resume Downloads"
+          value={String(limits.resumeDownloads)}
+          hint="Per month"
+          icon="📄"
+        />
+
+        <StatCard
+          label="Job Boosts"
+          value={String(limits.boosts)}
+          hint="Every month"
+          icon="🚀"
+        />
+      </div>
+
+      <div className="actions">
+        <ActionLink primary href="/pricing">
+          Upgrade Plan
+        </ActionLink>
+      </div>
+    </section>
+  );
+}
+function insightMessage(
+  averageApplications: number,
+  conversionRate: number
+) {
+  if (conversionRate >= 15) {
+    return "Excellent performance! Your jobs are converting visitors into applicants very effectively.";
+  }
+
+  if (averageApplications >= 10) {
+    return "Your jobs attract strong interest. Consider boosting your best listings to reach even more candidates.";
+  }
+
+  if (averageApplications >= 5) {
+    return "Your jobs are performing well. Improving job descriptions or salary details could increase applications.";
+  }
+
+  return "Your jobs need more visibility. Try boosting a listing or improving your job description to attract more applicants.";
+}
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [jobCount, setJobCount] = useState(0);
   const [applicationCount, setApplicationCount] = useState(0);
+  const [topJobTitle, setTopJobTitle] = useState("No jobs yet");
+const [topJobApplications, setTopJobApplications] = useState(0);
+const [averageApplications, setAverageApplications] = useState(0);
+const [totalViews, setTotalViews] = useState(0);
+const [conversionRate, setConversionRate] = useState(0);
+const [jobAnalytics, setJobAnalytics] = useState<
+  {
+    title: string;
+    applications: number;
+  }[]
+>([]);
   const [monthlyApplicationCount, setMonthlyApplicationCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
   const [waitlistCount, setWaitlistCount] = useState(0);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("Active");
+const [renewalDate, setRenewalDate] = useState("Not available");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -409,7 +523,21 @@ export default function DashboardPage() {
 
     const myProfile = profileData as Profile;
     setProfile(myProfile);
+if (myProfile.owner_plan_expires_at) {
+  setRenewalDate(
+    new Date(myProfile.owner_plan_expires_at).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+  );
+} else {
+  setRenewalDate("No renewal date");
+}
 
+setSubscriptionStatus(
+  myProfile.owner_plan === "free" ? "Free Plan" : "Active"
+);
     const { count: monthlyApps } = await supabase
       .from("applications")
       .select("*", { count: "exact", head: true })
@@ -441,21 +569,71 @@ export default function DashboardPage() {
 
     if (myProfile.role === "job_owner") {
       const { data: jobs } = await supabase
-        .from("jobs")
-        .select("id")
-        .eq("owner_id", userId);
+  .from("jobs")
+  .select("id, title, views")
+  .eq("owner_id", userId);
 
-      const ownerJobIds = jobs?.map((job) => job.id) ?? [];
-      setJobCount(ownerJobIds.length);
+const ownerJobIds = jobs?.map((job) => job.id) ?? [];
+setJobCount(ownerJobIds.length);
 
-      if (ownerJobIds.length > 0) {
-        const { count: apps } = await supabase
-          .from("applications")
-          .select("*", { count: "exact", head: true })
-          .in("job_id", ownerJobIds);
+if (ownerJobIds.length > 0) {
+  const { data: appData, count: apps } = await supabase
+  .from("applications")
+  .select("*", { count: "exact" })
+  .in("job_id", ownerJobIds);
 
-        setApplicationCount(apps ?? 0);
-      }
+setApplicationCount(apps ?? 0);
+
+const applicationCounts = new Map<string, number>();
+
+(appData ?? []).forEach((application) => {
+  applicationCounts.set(
+    application.job_id,
+    (applicationCounts.get(application.job_id) ?? 0) + 1
+  );
+});
+
+let bestJob = "No jobs yet";
+let bestCount = 0;
+
+jobs?.forEach((job) => {
+  const count = applicationCounts.get(job.id) ?? 0;
+
+  if (count > bestCount) {
+    bestCount = count;
+    bestJob = job.title;
+  }
+});
+
+setTopJobTitle(bestJob);
+setTopJobApplications(bestCount);
+
+setAverageApplications(
+  ownerJobIds.length > 0
+    ? Number(((apps ?? 0) / ownerJobIds.length).toFixed(1))
+    : 0
+);
+const views = (jobs ?? []).reduce(
+  (sum, job) => sum + (job.views ?? 0),
+  0
+);
+
+setTotalViews(views);
+
+setConversionRate(
+  views > 0
+    ? Number((((apps ?? 0) / views) * 100).toFixed(1))
+    : 0
+);
+const analytics = (jobs ?? []).map((job) => ({
+  title: job.title,
+  applications: applicationCounts.get(job.id) ?? 0,
+}));
+
+analytics.sort((a, b) => b.applications - a.applications);
+
+setJobAnalytics(analytics);
+}
     }
 
     if (myProfile.role === "job_seeker") {
@@ -692,6 +870,251 @@ export default function DashboardPage() {
               <ActionLink href="/profile">Complete company profile</ActionLink>
             </div>
           </section>
+          <section
+  className="card"
+  style={{
+    ...premiumCardStyle,
+    borderRadius: 30,
+    padding: 28,
+    marginTop: 24,
+  }}
+>
+  <span className="premium-badge">📊 Company Analytics</span>
+
+  <h2 style={{ marginTop: 18 }}>
+    Hiring Performance
+  </h2>
+
+  <p>
+    Track how your jobs are performing and identify which listings attract the
+    most applicants.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+      gap: 16,
+      marginTop: 24,
+    }}
+  >
+    <StatCard
+      label="Active Jobs"
+      value={jobCount}
+      hint="Currently posted jobs"
+      icon="💼"
+    />
+
+    <StatCard
+      label="Applications"
+      value={applicationCount}
+      hint="Across all your jobs"
+      icon="📩"
+    />
+
+    <StatCard
+      label="Top Job"
+      value={topJobTitle}
+      hint={`${topJobApplications} application${topJobApplications === 1 ? "" : "s"}`}
+      icon="🏆"
+    />
+
+    <StatCard
+      label="Average / Job"
+      value={averageApplications}
+      hint="Applications per job"
+      icon="📈"
+    />
+    <StatCard
+  label="Total Views"
+  value={totalViews}
+  hint="People who opened your jobs"
+  icon="👀"
+/>
+
+<StatCard
+  label="Conversion Rate"
+  value={`${conversionRate}%`}
+  hint="Applications ÷ Views"
+  icon="📈"
+/>
+  </div>
+</section>
+<section
+  className="card"
+  style={{
+    ...premiumCardStyle,
+    borderRadius: 30,
+    padding: 28,
+    marginTop: 24,
+  }}
+>
+  <span className="premium-badge">🏆 Job Performance</span>
+
+  <h2 style={{ marginTop: 18 }}>
+    Your Job Rankings
+  </h2>
+
+  <div
+    style={{
+      display: "grid",
+      gap: 12,
+      marginTop: 22,
+    }}
+  >
+    {jobAnalytics.length === 0 ? (
+      <p>No jobs yet.</p>
+    ) : (
+      jobAnalytics.map((job) => (
+        <div
+          key={job.title}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: 18,
+            borderRadius: 18,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div>
+            <strong>{job.title}</strong>
+          </div>
+
+          <div
+            style={{
+              textAlign: "right",
+            }}
+          >
+            <strong>{job.applications}</strong>
+            <br />
+            <small>
+              {job.applications >= 15
+                ? "🟢 Excellent"
+                : job.applications >= 8
+                ? "🟡 Good"
+                : "🔴 Needs Attention"}
+            </small>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</section>
+<section
+  className="card"
+  style={{
+    ...premiumCardStyle,
+    borderRadius: 30,
+    padding: 28,
+    marginTop: 24,
+  }}
+>
+  <span className="premium-badge">💡 Smart Hiring Insights</span>
+
+  <h2 style={{ marginTop: 18 }}>
+    Recommendations
+  </h2>
+
+  <p>{insightMessage(averageApplications, conversionRate)}</p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: 12,
+      marginTop: 20,
+    }}
+  >
+    <GuideItem>
+      🏆 Best performing job: <strong>{topJobTitle}</strong>
+    </GuideItem>
+
+    <GuideItem>
+      📈 Average applications per job:{" "}
+      <strong>{averageApplications}</strong>
+    </GuideItem>
+
+    <GuideItem>
+      👀 Total job views: <strong>{totalViews}</strong>
+    </GuideItem>
+
+    <GuideItem>
+      📊 Conversion rate:{" "}
+      <strong>{conversionRate}%</strong>
+    </GuideItem>
+  </div>
+</section>
+          <OwnerPlanCard
+            profile={profile}
+            jobCount={jobCount}
+          />
+          <section
+  className="card"
+  style={{
+    ...premiumCardStyle,
+    borderRadius: 30,
+    padding: 28,
+    marginTop: 24,
+  }}
+>
+  <span className="premium-badge">💳 Subscription History</span>
+
+  <h2 style={{ marginTop: 18 }}>
+    Billing Overview
+  </h2>
+
+  <p>
+    View your current subscription and upcoming renewal details.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+      gap: 16,
+      marginTop: 24,
+    }}
+  >
+    <StatCard
+      label="Current Plan"
+      value={profile.owner_plan.toUpperCase()}
+      hint="Active subscription"
+      icon="⭐"
+    />
+
+    <StatCard
+      label="Status"
+      value={subscriptionStatus}
+      hint="Subscription status"
+      icon="🟢"
+    />
+
+    <StatCard
+      label="Renewal"
+      value={renewalDate}
+      hint="Next renewal date"
+      icon="📅"
+    />
+
+    <StatCard
+      label="Invoices"
+      value="Coming Soon"
+      hint="Download invoices"
+      icon="🧾"
+    />
+  </div>
+
+  <div className="actions">
+    <ActionLink primary href="/pricing">
+      Upgrade Plan
+    </ActionLink>
+
+    <ActionLink href="#">
+      Billing History
+    </ActionLink>
+  </div>
+</section>
         </>
       )}
 

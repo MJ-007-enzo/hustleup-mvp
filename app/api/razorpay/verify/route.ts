@@ -95,17 +95,98 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error: profileError } = await supabase
+ if (payment.metadata?.type === "visibility") {
+  const jobId = payment.metadata?.job_id;
+
+  if (!jobId) {
+    return NextResponse.json(
+      { error: "Missing job id" },
+      { status: 400 }
+    );
+  }
+
+  const update: Record<string, unknown> = {};
+
+  switch (payment.tier) {
+    case "1-day":
+      update.boost_type = "1-day";
+      update.boost_expires_at = new Date(
+        Date.now() + 1 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      break;
+
+    case "3-day":
+      update.boost_type = "3-day";
+      update.boost_expires_at = new Date(
+        Date.now() + 3 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      break;
+
+    case "7-day":
+      update.boost_type = "7-day";
+      update.boost_expires_at = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      break;
+
+    case "urgent":
+      update.urgent_tag = true;
+      update.urgent_expires_at = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      break;
+  }
+
+  const { error } = await supabase
+    .from("jobs")
+    .update(update)
+    .eq("id", jobId)
+    .eq("owner_id", userData.user.id);
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
+} else {
+  let profileError = null;
+
+  if (
+    payment.tier === "starter" ||
+    payment.tier === "growth" ||
+    payment.tier === "pro" ||
+    payment.tier === "business"
+  ) {
+    const { error } = await supabase
       .from("profiles")
-      .update({ tier: payment.tier })
+      .update({
+        owner_plan: payment.tier,
+        owner_plan_expires_at: new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      })
       .eq("id", userData.user.id);
 
-    if (profileError) {
-      return NextResponse.json(
-        { error: profileError.message },
-        { status: 500 }
-      );
-    }
+    profileError = error;
+  } else {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        tier: payment.tier,
+      })
+      .eq("id", userData.user.id);
+
+    profileError = error;
+  }
+
+  if (profileError) {
+    return NextResponse.json(
+      { error: profileError.message },
+      { status: 500 }
+    );
+  }
+}
 
     return NextResponse.json({
       success: true,

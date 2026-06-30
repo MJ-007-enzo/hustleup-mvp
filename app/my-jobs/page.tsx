@@ -7,7 +7,12 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/components/ToastProvider";
 import { supabase } from "@/lib/supabaseClient";
 import type { Job, Profile } from "@/lib/types";
-
+import { createPortal } from "react-dom";
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
 type JobWithDetails = Job & {
   responsibilities?: string | null;
   who_can_apply?: string | null;
@@ -69,7 +74,14 @@ const textareaValueStyle: CSSProperties = {
   fontFamily: "inherit",
   lineHeight: 1.55,
 };
-
+const workScheduleOptions = [
+  { label: "Flexible", value: "Flexible" },
+  { label: "Mon - Fri", value: "Mon - Fri" },
+  { label: "Mon - Sat", value: "Mon - Sat" },
+  { label: "Weekends Only", value: "Weekends Only" },
+  { label: "Daily", value: "Daily" },
+  { label: "Custom", value: "Custom" },
+];
 function capitalizeWords(value: string) {
   return value.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
@@ -281,13 +293,25 @@ export default function MyJobsPage() {
   const [jobs, setJobs] = useState<JobWithDetails[]>([]);
   const [editingJob, setEditingJob] = useState<JobWithDetails | null>(null);
   const [jobToDelete, setJobToDelete] = useState<JobWithDetails | null>(null);
+  const [boostingJob, setBoostingJob] = useState<JobWithDetails | null>(null);
+
+const [buyingVisibility, setBuyingVisibility] =
+  useState(false);
+const [processingBoost, setProcessingBoost] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [openEditDropdown, setOpenEditDropdown] = useState<
-    "salaryType" | "status" | null
-  >(null);
+  const [visibilityJob, setVisibilityJob] =
+  useState<JobWithDetails | null>(null);
+  
+
+const [selectedAddon, setSelectedAddon] = useState<
+  "1-day" | "3-day" | "7-day" | "urgent"
+>("3-day");
+ const [openEditDropdown, setOpenEditDropdown] = useState<
+  "salaryType" | "status" | "workSchedule" | null
+>(null);
 
   useEffect(() => {
     function checkMobile() {
@@ -299,7 +323,17 @@ export default function MyJobsPage() {
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+useEffect(() => {
+  if (!editingJob) return;
 
+  const previousOverflow = document.body.style.overflow;
+
+  document.body.style.overflow = "hidden";
+
+  return () => {
+    document.body.style.overflow = previousOverflow;
+  };
+}, [editingJob]);
   useEffect(() => {
     loadPage();
   }, []);
@@ -338,11 +372,19 @@ export default function MyJobsPage() {
     setProfile(myProfile);
 
     if (myProfile.role !== "job_owner" && myProfile.role !== "admin") {
-      setCheckingAccess(false);
-      return;
-    }
+  setCheckingAccess(false);
+  return;
+}
 
-    let query = supabase.from("jobs").select("*");
+const { error: cleanupError } = await supabase.rpc(
+  "cleanup_expired_job_visibility"
+);
+
+if (cleanupError) {
+  console.error(cleanupError.message);
+}
+
+let query = supabase.from("jobs").select("*");
 
     if (myProfile.role !== "admin") {
       query = query.eq("owner_id", authData.user.id);
@@ -384,6 +426,7 @@ export default function MyJobsPage() {
         company_name: editingJob.company_name,
         location: editingJob.location,
         job_type: editingJob.job_type,
+        work_schedule: editingJob.work_schedule,
         duration: editingJob.duration,
         salary_type: editingJob.salary_type,
         salary_amount: editingJob.salary_amount,
@@ -428,14 +471,159 @@ export default function MyJobsPage() {
     await loadPage();
     showToast("Job deleted successfully.", "success");
   }
+function loadRazorpayScript() {
+  return new Promise<boolean>((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
 
+    const script = document.createElement("script");
+
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+
+    document.body.appendChild(script);
+  });
+}
+async function buyVisibility() {
+  if (!visibilityJob) return;
+
+  setBuyingVisibility(true);
+
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  if (!token) {
+    window.location.href = "/auth";
+    return;
+  }
+
+  const loaded = await loadRazorpayScript();
+
+  if (!loaded) {
+    setBuyingVisibility(false);
+    showToast("Couldn't load Razorpay", "error");
+    return;
+  }
+
+  const orderResponse = await fetch("/api/razorpay/create-order", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      tier: selectedAddon,
+      jobId: visibilityJob.id,
+    }),
+  });
+
+  const order = await orderResponse.json();
+
+  if (!orderResponse.ok) {
+    setBuyingVisibility(false);
+    showToast(order.error, "error");
+    return;
+  }
+async function updatePaymentAttemptStatus(
+  orderId: string,
+  status: "cancelled" | "failed"
+) {
+  await fetch("/api/razorpay/update-payment-status", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      orderId,
+      status,
+    }),
+  });
+}
+  const razorpay = new window.Razorpay({
+    key: order.keyId,
+    amount: order.amount,
+    currency: order.currency,
+    order_id: order.orderId,
+    name: "HustleUp",
+    description: "Visibility Add-on",
+
+    theme: {
+      color: "#ff5a1f",
+    },
+
+    handler: async function (response: any) {
+      const verify = await fetch("/api/razorpay/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(response),
+      });
+
+      const verifyData = await verify.json();
+
+      setBuyingVisibility(false);
+
+      if (!verify.ok) {
+        showToast(verifyData.error, "error");
+        return;
+      }
+
+      showToast("Visibility activated!", "success");
+
+      setVisibilityJob(null);
+
+      await loadPage();
+    },
+
+  modal: {
+  async ondismiss() {
+    await updatePaymentAttemptStatus(order.orderId, "cancelled");
+    setBuyingVisibility(false);
+  },
+},
+  });
+razorpay.on("payment.failed", async function () {
+  await updatePaymentAttemptStatus(order.orderId, "failed");
+  setBuyingVisibility(false);
+  showToast("Payment failed. Please try again.", "error");
+});
+  razorpay.open();
+}
+function isBoostActive(job: JobWithDetails) {
+  if (!job.boost_type || !job.boost_expires_at) return false;
+
+  return new Date(job.boost_expires_at).getTime() > Date.now();
+}
+
+function isUrgentActive(job: JobWithDetails) {
+  if (!job.urgent_tag || !job.urgent_expires_at) return false;
+
+  return new Date(job.urgent_expires_at).getTime() > Date.now();
+}
+
+function formatVisibilityDate(date?: string | null) {
+  if (!date) return "Not active";
+
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
   function EditDropdown({
     dropdownKey,
     value,
     options,
     onChange,
   }: {
-    dropdownKey: "salaryType" | "status";
+   dropdownKey: "salaryType" | "status" | "workSchedule";
     value: string;
     options: { label: string; value: string }[];
     onChange: (value: string) => void;
@@ -646,6 +834,7 @@ export default function MyJobsPage() {
         onConfirm={() => {
           if (jobToDelete) {
             deleteJob(jobToDelete);
+ 
           }
         }}
       />
@@ -809,11 +998,19 @@ export default function MyJobsPage() {
                     alignItems: "center",
                   }}
                 >
-                  {job.is_premium && <Pill variant="premium">Premium</Pill>}
+                {job.is_premium && <Pill variant="premium">Premium</Pill>}
 
-                  <Pill variant={job.status === "open" ? "success" : "neutral"}>
-                    {job.status}
-                  </Pill>
+{isBoostActive(job) && (
+  <Pill variant="premium">🔥 Boosted</Pill>
+)}
+
+{isUrgentActive(job) && (
+  <Pill variant="danger">🚨 Urgent</Pill>
+)}
+
+<Pill variant={job.status === "open" ? "success" : "neutral"}>
+  {job.status}
+</Pill>
                 </div>
 
                 <Pill>{job.job_type || "Job"}</Pill>
@@ -849,25 +1046,133 @@ export default function MyJobsPage() {
                 {job.location}
               </p>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "1fr"
-                    : "repeat(3, minmax(0, 1fr))",
-                  gap: 10,
-                  marginBottom: 18,
-                }}
-              >
-                <InfoTile
-                  label="Salary"
-                  value={`₹${job.salary_amount}/${job.salary_type}`}
-                />
+            <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+    marginBottom: 18,
+  }}
+>
+  <InfoTile
+    label="Salary"
+    value={`₹${job.salary_amount}/${job.salary_type}`}
+  />
 
-                <InfoTile label="Timing" value={job.duration || "Flexible"} />
+  <InfoTile
+    label="Schedule"
+    value={job.work_schedule || "Flexible"}
+  />
 
-                <InfoTile label="Openings" value={job.openings || 1} />
-              </div>
+  <InfoTile
+    label="Timing"
+    value={job.duration || "Flexible"}
+  />
+
+  <InfoTile
+    label="Openings"
+    value={job.openings || 1}
+  />
+</div>
+
+<div
+  style={{
+    marginBottom: 18,
+    padding: 14,
+    borderRadius: 18,
+    background:
+      isBoostActive(job) || isUrgentActive(job)
+        ? "rgba(255,90,31,0.09)"
+        : "var(--card-soft)",
+    border:
+      isBoostActive(job) || isUrgentActive(job)
+        ? "1px solid rgba(255,90,31,0.28)"
+        : "1px solid rgba(255,90,31,0.14)",
+    boxShadow:
+      isBoostActive(job) || isUrgentActive(job)
+        ? "0 16px 34px rgba(255,90,31,0.10)"
+        : "0 12px 28px rgba(0,0,0,0.08)",
+  }}
+>
+  <small
+    style={{
+      display: "block",
+      color: "var(--muted)",
+      fontWeight: 900,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      marginBottom: 8,
+      fontSize: 11,
+    }}
+  >
+    Visibility status
+  </small>
+
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: 6,
+    }}
+  >
+    {isBoostActive(job) ? (
+      <strong
+        style={{
+          color: "var(--brand)",
+          fontWeight: 950,
+        }}
+      >
+        🔥 {job.boost_type} Boost Active
+      </strong>
+    ) : (
+      <strong
+        style={{
+          color: "var(--muted)",
+          fontWeight: 850,
+        }}
+      >
+        No active boost
+      </strong>
+    )}
+
+    {isBoostActive(job) && (
+      <span
+        style={{
+          color: "var(--muted)",
+          fontWeight: 700,
+          fontSize: 13,
+        }}
+      >
+        Boost expires: {formatVisibilityDate(job.boost_expires_at)}
+      </span>
+    )}
+
+    {isUrgentActive(job) && (
+      <>
+        <strong
+          style={{
+            color: "#dc2626",
+            fontWeight: 950,
+          }}
+        >
+          🚨 Urgent Hiring Active
+        </strong>
+
+        <span
+          style={{
+            color: "var(--muted)",
+            fontWeight: 700,
+            fontSize: 13,
+          }}
+        >
+          Urgent tag expires: {formatVisibilityDate(job.urgent_expires_at)}
+        </span>
+      </>
+    )}
+  </div>
+</div>
 
               <p
                 style={{
@@ -886,7 +1191,7 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                 gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0,1fr))",
                   gap: 10,
                 }}
               >
@@ -897,7 +1202,16 @@ export default function MyJobsPage() {
                 >
                   Edit job
                 </button>
-
+<button
+  className="btn btn-primary"
+  style={primaryButtonStyle}
+  onClick={() => {
+    setVisibilityJob(job);
+    setSelectedAddon("3-day");
+  }}
+>
+  🚀 Visibility
+</button>
                 <button
                   className="btn"
                   style={dangerButtonStyle}
@@ -912,23 +1226,22 @@ export default function MyJobsPage() {
         </section>
       )}
 
-    {editingJob && (
-  <div
-    className="job-modal-backdrop"
-          onClick={() => setEditingJob(null)}
-          style={{
-            
-        
-            padding: isMobile ? 12 : 18,
-      
-          }}
-        >
+  {editingJob &&
+  createPortal(
+    <div
+      className="job-modal-backdrop"
+      onClick={() => setEditingJob(null)}
+      style={{
+        padding: isMobile ? 12 : 18,
+      }}
+    >
           <form
   className="job-modal edit-job-modal"
   onSubmit={saveJob}
             onClick={(event) => event.stopPropagation()}
-          
+           
           >
+            
             <div
               style={{
                 position: "absolute",
@@ -937,7 +1250,7 @@ export default function MyJobsPage() {
                 background: "var(--brand-gradient)",
               }}
             />
-
+          
             <button
               type="button"
               onClick={() => setEditingJob(null)}
@@ -1025,7 +1338,7 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0,1fr))",
                   gap: 12,
                 }}
               >
@@ -1043,7 +1356,36 @@ export default function MyJobsPage() {
                     }
                   />
                 </label>
+<label className="label">
+  Work schedule
 
+  <EditDropdown
+    dropdownKey="workSchedule"
+    value={editingJob.work_schedule ?? "Flexible"}
+    options={workScheduleOptions}
+    onChange={(value) =>
+      updateEditField("work_schedule", value)
+    }
+  />
+</label>
+
+{editingJob.work_schedule === "Custom" && (
+  <label className="label">
+    Custom schedule
+    <input
+      className="input"
+      style={formValueStyle}
+      value={editingJob.contact_note ?? ""}
+      onChange={(event) =>
+        updateEditField(
+          "contact_note",
+          event.target.value
+        )
+      }
+      placeholder="Example: Tue - Sun"
+    />
+  </label>
+)}
                 <label className="label">
                   Duration / timing
                   <input
@@ -1060,7 +1402,7 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0,1fr))",
                   gap: 12,
                 }}
               >
@@ -1165,7 +1507,7 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0,1fr))",
                   gap: 12,
                 }}
               >
@@ -1253,7 +1595,7 @@ export default function MyJobsPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0,1fr))",
                   gap: 12,
                   marginTop: 8,
                 }}
@@ -1275,10 +1617,171 @@ export default function MyJobsPage() {
                   {saving ? "Saving..." : "Save changes"}
                 </button>
               </div>
+              <div
+  style={{
+    height: 80,
+    flexShrink: 0,
+  }}
+/>
             </div>
-          </form>
-        </div>
+                  </form>
+        </div>,
+        document.body
       )}
+      {visibilityJob &&
+  createPortal(
+    <div
+      className="job-modal-backdrop"
+      onClick={() => setVisibilityJob(null)}
+    >
+      <div
+        className="job-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: 560,
+        }}
+      >
+        <span className="badge">
+          🚀 Visibility Add-ons
+        </span>
+
+        <h2
+          style={{
+            marginTop: 16,
+          }}
+        >
+          {visibilityJob.title}
+        </h2>
+
+        <p
+          style={{
+            color: "var(--muted)",
+            marginBottom: 28,
+          }}
+        >
+          Increase your job's visibility and receive
+          more applicants.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gap: 14,
+          }}
+        >
+          {[
+            {
+              id: "1-day",
+              title: "1-Day Boost",
+              price: "₹49",
+              desc: "Top placement for 24 hours",
+            },
+            {
+              id: "3-day",
+              title: "3-Day Boost",
+              price: "₹99",
+              desc: "Top placement for 3 days",
+            },
+            {
+              id: "7-day",
+              title: "7-Day Boost",
+              price: "₹199",
+              desc: "Maximum visibility",
+            },
+            {
+              id: "urgent",
+              title: "Urgent Hiring",
+              price: "₹99",
+              desc: "Shows an Urgent badge",
+            },
+          ].map((addon) => {
+            const active =
+              selectedAddon === addon.id;
+
+            return (
+              <button
+                key={addon.id}
+                type="button"
+                onClick={() =>
+                  setSelectedAddon(
+                    addon.id as
+                      | "1-day"
+                      | "3-day"
+                      | "7-day"
+                      | "urgent"
+                  )
+                }
+                style={{
+                  padding: 18,
+                  borderRadius: 18,
+                  border: active
+                    ? "2px solid var(--brand)"
+                    : "1px solid var(--border)",
+                  background: active
+                    ? "rgba(255,90,31,.08)"
+                    : "var(--card)",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                  }}
+                >
+                  <strong>
+                    {addon.title}
+                  </strong>
+
+                  <strong>
+                    {addon.price}
+                  </strong>
+                </div>
+
+                <p
+                  style={{
+                    marginTop: 8,
+                    color: "var(--muted)",
+                  }}
+                >
+                  {addon.desc}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+            marginTop: 28,
+          }}
+        >
+          <button
+            className="btn"
+            onClick={() =>
+              setVisibilityJob(null)
+            }
+          >
+            Cancel
+          </button>
+
+          <button
+            className="btn btn-primary"
+           onClick={buyVisibility}
+disabled={buyingVisibility}
+          >
+         {buyingVisibility ? "Opening..." : "Continue to Payment"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )}
     </main>
   );
 }
