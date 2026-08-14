@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ToastProvider } from "@/components/ToastProvider";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "HustleUp",
@@ -23,6 +24,7 @@ export default function RootLayout({
           {children}
           <Footer />
         </ToastProvider>
+        <Analytics />
       </body>
     </html>
   );
